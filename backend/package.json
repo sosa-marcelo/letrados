@@ -5,12 +5,13 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "dev": "node --watch src/servidor.js",
+    "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --watch src/servidor.js",
     "start": "node src/servidor.js",
     "test": "echo \"pendiente: LET-5 configura Vitest\" && exit 0",
     "migrar": "echo \"pendiente: LET-4 crea las migraciones\" && exit 0"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
   }
 }

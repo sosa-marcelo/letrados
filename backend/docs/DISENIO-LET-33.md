@@ -56,14 +56,22 @@ Dependencias permitidas: `api -> domain -> data -> infra`. `api` puede tocar
 - Cada capa deja un `README.md` breve (que va y que no va).
 
 ### 3.2 Configuracion y pool (LET-3)
-- `src/infra/config.js`: carga `.env` con el `--env-file` nativo de Node o
-  `process.env` ya poblado. Valida las 6 variables obligatorias:
-  `DATABASE_URL`, `JWT_SECRETO`, `JWT_VENCIMIENTO`, `CORREO_PROVEEDOR`,
-  `CORREO_API_KEY`, `URL_FRONTEND`.
-  - `CORREO_API_KEY` puede venir vacia si `CORREO_PROVEEDOR=consola` — se exige
-    presente solo si el proveedor es real.
-  - Si falta una: lanza un error al arrancar con el mensaje
-    `Falta la variable de entorno: NOMBRE` y el proceso no sigue.
+- `src/infra/config.js`: no lee el archivo; se apoya en `process.env` ya poblado
+  (`node --env-file=.env ...` o variables del hosting). Valida las variables
+  obligatorias y las expone normalizadas via `construirConfig(entorno)` (exportada
+  aparte para poder probarla con distintos entornos).
+  - Obligatorias siempre (5): `DATABASE_URL`, `JWT_SECRETO`, `JWT_VENCIMIENTO`,
+    `CORREO_PROVEEDOR`, `URL_FRONTEND`.
+  - Si falta una: lanza al importarse con el mensaje
+    `Falta la variable de entorno: NOMBRE` y el proceso no arranca.
+
+  **Decision LET-3 (2026-09-10, confirmada por el integrador):** `CORREO_API_KEY`
+  NO es obligatoria siempre. Se exige solo si `CORREO_PROVEEDOR !== 'consola'`.
+  Motivo: pedir una credencial para un "proveedor" que solo escribe en stdout
+  obligaria a poner un valor falso en `.env.example`, y eso entrena al equipo a
+  rellenar credenciales con basura para que el proyecto arranque. Cuando el
+  proveedor es real y falta la clave, el mensaje es
+  `Falta la variable de entorno: CORREO_API_KEY`.
 - `src/infra/bd.js`: pool de `pg`. `ssl: { rejectUnauthorized: false }` cuando la
   URL trae `sslmode=require` (Neon). Exporta `consultar(texto, parametros)` y
   `obtenerCliente()` para transacciones.
