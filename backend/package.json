@@ -8,10 +8,13 @@
     "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --watch src/servidor.js",
     "start": "node src/servidor.js",
     "test": "echo \"pendiente: LET-5 configura Vitest\" && exit 0",
-    "migrar": "echo \"pendiente: LET-4 crea las migraciones\" && exit 0"
+    "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
   },
   "dependencies": {
     "express": "^5.2.1",
     "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
   }
 }
