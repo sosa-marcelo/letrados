@@ -1,0 +1,69 @@
+.relleno {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--margen-pantalla-movil);
+  background: var(--verde);
+}
+
+.relleno__papel {
+  width: 100%;
+  max-width: var(--ancho-tarjeta);
+  background: var(--crema);
+  border: var(--borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-dura);
+  padding: var(--relleno-tarjeta);
+}
+
+.relleno__marca {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  margin: 0 0 18px;
+}
+
+.relleno__eti {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--naranja);
+}
+
+.relleno__titulo {
+  font-size: var(--texto-titulo-tarjeta);
+  line-height: var(--interlinea-titulo-tarjeta);
+  margin: 6px 0 10px;
+}
+
+.relleno__epica {
+  margin: 0 0 20px;
+  color: var(--gris);
+}
+
+.relleno__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 2px dashed var(--linea);
+}
+
+.relleno__link {
+  font-weight: 700;
+  color: var(--tinta);
+  text-decoration: none;
+  border-bottom: 2px solid var(--naranja);
+}
+
+.relleno__link:hover {
+  background: var(--naranja);
+}
+
+@media (min-width: 480px) {
+  .relleno {
+    padding: var(--margen-pantalla);
+  }
+}
