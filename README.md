@@ -35,7 +35,7 @@ Dos reglas de arquitectura que no se negocian: **`data` no tiene reglas de negoc
 
 ## Cómo arrancar
 
-Hace falta Node 20 o superior.
+Hace falta Node 20.12 o superior.
 
 ```bash
 git clone git@github.com:sosa-marcelo/letrados.git
@@ -43,24 +43,37 @@ cd letrados
 npm install                 # instala los dos workspaces de una vez
 cp .env.example .env        # y completar los valores
 npm run migrar              # crea las tablas
+npm run dev                 # levanta los dos proyectos
 ```
 
-Después, en dos terminales:
-
-```bash
-npm run dev:backend         # API en http://localhost:3000
-npm run dev:frontend        # interfaz en http://localhost:5173
-```
-
+`npm run dev` arranca la API en http://localhost:3000 y la interfaz en
+http://localhost:5173, las dos en la misma terminal y con recarga automática.
 Vite redirige `/api` al backend, así que en desarrollo no hace falta CORS.
 
-Otros comandos:
+## Comandos
 
-```bash
-npm test                    # pruebas de los dos workspaces
-npm run build               # compila el frontend
-npm start                   # sirve API y estáticos en un solo proceso
-```
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Levanta backend y frontend juntos, con recarga automática. Es el modo de trabajo. |
+| `npm start` | Compila el frontend y lo sirve desde Express, todo en un proceso y un puerto. Es como corre en producción. |
+| `npm run build` | Solo compila el frontend a `frontend/dist`. |
+| `npm run servir` | Sirve sin compilar. Solo si ya compilaste antes. |
+| `npm test` | Pruebas de los dos workspaces, con cobertura. |
+| `npm run migrar` | Aplica las migraciones pendientes. Antes de tocar nada avisa a qué base va a aplicar. |
+
+**`npm run dev` y `npm start` no son lo mismo.** En `dev` el frontend lo sirve
+Vite; en `start` lo sirve Express desde el build, que es el único modo que
+ejercita el orden de montaje de la API, los estáticos y el comodín de la SPA.
+Conviene correr `npm start` antes de dar algo por terminado.
+
+## Sobre el archivo `.env`
+
+`dev`, `start` y `migrar` leen el `.env` de la raíz si existe. Las variables que
+ya estén en el entorno **le ganan** al archivo, así que en el servidor mandan las
+del hosting y el archivo no molesta.
+
+`npm test` **no** lo lee, a propósito: las pruebas usan una base en memoria y no
+deben poder tocar una base real por accidente.
 
 ## Variables de entorno
 

@@ -19,10 +19,13 @@ feature/ ─┴──────┴───────────┴──�
 | Integración | `develop` | `main` | `main` (release) |
 | Épica | `feature/LET-33-entorno-y-base-del-proyecto` | `develop` | `develop` |
 | Tarea | `LET-1-inicializar-el-repositorio` | su épica | su épica |
+| Arreglo sin ticket | `fix/arranque-y-scripts` | su épica | su épica |
 
 **`main` no se toca.** Solo recibe releases desde `develop`.
 
 El nombre de la rama es `[ticket]-[titulo-en-minusculas-con-guiones]`. El ticket sale del tablero.
+
+Lo que no tiene ticket —un arreglo que sale de una revisión, algo que se rompió— va en una rama `fix/[titulo]`. No se le cuelga el código de un ticket ajeno: si algo entra bajo `LET-1`, dentro de seis meses alguien va a leer ese historial buscando el alcance de esa tarea y va a encontrar otra cosa.
 
 ## Commits
 
@@ -31,6 +34,7 @@ Un commit describe **qué cambió**, en presente y en español, con el ticket ad
 ```
 LET-1: agrega el esqueleto del monorepo con workspaces
 LET-4: crea las tablas usuarios y tokens_recuperacion
+fix: corrige el arranque desde un clon limpio
 ```
 
 Commits chicos y que compilen. Nada de `wip`, `fix` ni `cambios`.

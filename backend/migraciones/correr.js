@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { obtenerCliente, cerrarPool } from '../src/infra/bd.js';
+import { obtenerConfig } from '../src/infra/config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -102,8 +103,25 @@ export async function correrMigraciones({
   return aplicadas;
 }
 
+/**
+ * Describe a donde se va a aplicar, sin exponer usuario ni contrasena.
+ * Aplicar DDL sin ver el destino es como firmar sin leer.
+ *
+ * @param {string} url - cadena de conexion.
+ * @returns {string}
+ */
+function describirDestino(url) {
+  try {
+    const { host, pathname } = new URL(url);
+    return `${host}${pathname}`;
+  } catch {
+    return '(no se pudo leer el destino de DATABASE_URL)';
+  }
+}
+
 /** Ejecuta el corredor contra el pool del proyecto. Lo usa `npm run migrar`. */
 async function principal() {
+  console.log(`Aplicando migraciones en ${describirDestino(obtenerConfig().databaseUrl)}`);
   const cliente = await obtenerCliente();
   try {
     await correrMigraciones({ cliente });
