@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --watch src/servidor.js",
+    "start": "node --env-file-if-exists=../.env --env-file-if-exists=.env src/servidor.js",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.0",
+    "pg-mem": "^3.0.14",
+    "supertest": "^7.2.2",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,23 @@
+.lema {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: var(--texto-lema-movil);
+  line-height: var(--interlinea-lema-movil);
+  letter-spacing: -0.036em;
+  margin: 0;
+  max-width: 12ch;
+}
+
+.lema__resaltado {
+  font-style: normal;
+  color: var(--complementario, var(--naranja));
+}
+
+@media (min-width: 480px) {
+  .lema {
+    font-size: var(--texto-lema);
+    line-height: var(--interlinea-lema);
+    letter-spacing: -0.04em;
+    max-width: 11ch;
+  }
+}

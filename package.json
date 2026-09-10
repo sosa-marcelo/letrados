@@ -1,0 +1,27 @@
+{
+  "name": "letrados",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Plataforma de intercambio y donacion de libros",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "concurrently --names backend,frontend --prefix-colors green,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "start": "npm run build && npm run start --workspace backend",
+    "servir": "npm run start --workspace backend",
+    "test": "npm run test --workspaces --if-present",
+    "migrar": "npm run migrar --workspace backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
