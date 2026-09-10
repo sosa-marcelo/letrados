@@ -82,11 +82,26 @@ Dependencias permitidas: `api -> domain -> data -> infra`. `api` puede tocar
 - `backend/migraciones/001_usuarios_y_tokens.sql`: el DDL tal cual.
 - `backend/migraciones/correr.js`: corredor propio, sin ORM ni libreria.
   - Crea la tabla `migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_en
-    TIMESTAMPTZ NOT NULL DEFAULT now())` si no existe.
+    TIMESTAMPTZ NOT NULL DEFAULT now())` si no existe. Consulta
+    `information_schema.tables` en vez de `CREATE TABLE IF NOT EXISTS`: es
+    explicito y portable, y en Postgres se comporta igual. (El disparador fue un
+    defecto de `pg-mem` en la 2da corrida, pero el resultado se sostiene por si
+    mismo.)
   - Lee los `.sql` de la carpeta ordenados por nombre, aplica los que no esten
     registrados, cada uno dentro de una transaccion, y los registra.
   - Idempotente: correrlo dos veces no hace nada la segunda.
 - Se engancha a `npm run migrar` (reemplaza el `echo` provisorio).
+- **Deuda anotada:** el corredor no toma un `pg_advisory_lock`. Si dos personas
+  corren `npm run migrar` a la vez contra la misma base, ambas pueden pasar el
+  chequeo de `information_schema` y chocar. Para el tamano actual del equipo no
+  se arregla ahora; se agrega un advisory lock al principio del corredor cuando
+  haga falta.
+
+**Principio de trabajo con `pg-mem` (fijado tras LET-4):** `pg-mem` es una
+reimplementacion de Postgres en JavaScript, no el motor. Cuando no coincida con
+Postgres, **el que se acomoda es la prueba, no el codigo de produccion**: se
+saltea con un motivo escrito y se sigue. Nunca se reescribe una consulta valida
+para que `pg-mem` la trague.
 
 ### 3.4 Vitest (LET-5)
 - Dependencias nuevas: `vitest`, `@vitest/coverage-v8`, `pg-mem`.
@@ -111,10 +126,10 @@ Dependencias permitidas: `api -> domain -> data -> infra`. `api` puede tocar
   - `invalidarTokensPendientesDeUsuario(usuario_id)` -> cantidad afectada
 - Reciben un ejecutor de consultas inyectable (default: el pool) para poder pasar
   el cliente de `pg-mem` en las pruebas.
-- Pruebas con `pg-mem`. **Riesgo**: `pg-mem` puede no tragar `BIGSERIAL`,
-  `TIMESTAMPTZ` o `now()` tal cual. Si no lo hace: se dejan las pruebas afectadas
-  como `it.skip` con motivo, se avisa al integrador y se sigue. No se pelea con la
-  herramienta ni se toca el DDL.
+- Pruebas con `pg-mem`. Verificado en LET-4: `pg-mem` traga el DDL cerrado entero
+  (`BIGSERIAL`, `TIMESTAMPTZ`, `now()`, `REFERENCES`, `UNIQUE`). Si alguna consulta
+  puntual no le entra, se marca esa prueba como pendiente con motivo y se sigue;
+  no se reescribe la consulta ni se toca el DDL (ver principio en 3.3).
 
 ### 3.6 Manejador de errores (LET-17)
 - `src/domain/errores.js`: clase `ErrorDominio extends Error` con `codigo`
@@ -174,11 +189,16 @@ Dependencias permitidas: `api -> domain -> data -> infra`. `api` puede tocar
 
 - **Se prueba de verdad hoy**: arranque de Express, `/api/salud`, validacion de
   entrada de auth, respuestas 501, forma del error, fallo de config por variable
-  faltante, corredor de migraciones y capa de datos contra `pg-mem` (si traga el
-  DDL).
+  faltante, logica del corredor de migraciones y capa de datos contra `pg-mem`.
 - **No se puede verificar hoy** (no hay Postgres, ni Docker, ni cadena de Neon):
   migracion real contra Neon, pool real, cualquier ida y vuelta a una base de
   verdad. Se reporta como "escrito, no ejecutado".
+- **Asterisco sobre `pg-mem` (LET-4/LET-10):** `pg-mem` es Postgres reimplementado
+  en JavaScript, no el motor. Que la migracion corra y que las consultas de `data`
+  pasen contra `pg-mem` da confianza en la forma del SQL, pero **no** cumple el
+  «Listo cuando» de LET-4 («la migracion corre desde cero contra una base»). Ese
+  paso queda pendiente: cuando llegue `DATABASE_URL`, hay que correr
+  `npm run migrar` de verdad contra Neon y recien ahi darlo por verificado.
 
 ## 6. Dependencias que se agregan al backend
 
