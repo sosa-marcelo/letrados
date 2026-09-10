@@ -6,7 +6,7 @@
   "main": "src/app.js",
   "scripts": {
     "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --watch src/servidor.js",
-    "start": "node src/servidor.js",
+    "start": "node --env-file-if-exists=../.env --env-file-if-exists=.env src/servidor.js",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
