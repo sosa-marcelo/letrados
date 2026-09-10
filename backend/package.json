@@ -9,5 +9,8 @@
     "start": "node src/servidor.js",
     "test": "echo \"pendiente: LET-5 configura Vitest\" && exit 0",
     "migrar": "echo \"pendiente: LET-4 crea las migraciones\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
