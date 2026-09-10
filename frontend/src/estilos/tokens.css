@@ -1,0 +1,52 @@
+/*
+ * Tokens del sistema visual "Pleno".
+ * Valores exactos de la hoja de sistema (PlenoSistema.dc.html). No redondear.
+ */
+:root {
+  /* --- Paleta --- */
+  --crema: #fff8ec;   /* fondo de la tarjeta */
+  --blanco: #fffdf8;  /* superficies internas */
+  --hundido: #f1e7d3; /* fondo de los campos */
+  --tinta: #141414;   /* texto y bordes */
+  --verde: #0e4d3c;   /* color pleno */
+  --naranja: #f4632a; /* color pleno */
+  --rojo: #b3261e;    /* error */
+  --gris: #5f5a52;    /* texto secundario y etiquetas */
+  --linea: rgba(20, 20, 20, 0.16); /* separadores */
+
+  /* --- Tipografía --- */
+  --fuente-titulos: 'Bricolage Grotesque', system-ui, Arial, sans-serif;
+  --fuente-cuerpo: 'Public Sans', system-ui, Arial, sans-serif;
+
+  --texto-lema: 58px;
+  --interlinea-lema: 0.94;
+  --texto-lema-movil: 30px;
+  --interlinea-lema-movil: 0.98;
+  --texto-home: 60px;
+  --interlinea-home: 0.96;
+  --texto-titulo-tarjeta: 28px;
+  --interlinea-titulo-tarjeta: 1.04;
+  --texto-cuerpo: 15px;
+  --interlinea-cuerpo: 1.5;
+  --texto-etiqueta: 12.5px;
+  --peso-etiqueta: 700;
+
+  /* --- Espaciado y bordes --- */
+  --base: 4px;
+  --entre-campos: 15px;
+  --margen-pantalla: 56px;
+  --margen-pantalla-movil: 18px;
+  --ancho-tarjeta: 424px;
+  --relleno-tarjeta: 30px;
+  --relleno-tarjeta-movil: 20px;
+  --radio-tarjeta: 16px;
+  --radio-campo: 10px;
+  --radio-boton: 999px;
+  --borde: 2px solid var(--tinta);
+  --sombra-dura: 9px 9px 0 var(--tinta);
+  --sombra-dura-movil: 6px 6px 0 var(--tinta);
+  --alto-control: 48px;
+
+  /* Ancho a partir del cual se aplica el layout móvil. */
+  --corte-movil: 480px;
+}
