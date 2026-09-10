@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --watch src/servidor.js",
     "start": "node src/servidor.js",
-    "test": "echo \"pendiente: LET-5 configura Vitest\" && exit 0",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
     "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
   },
   "dependencies": {
@@ -15,6 +16,9 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "pg-mem": "^3.0.14"
+    "@vitest/coverage-v8": "^5.0.0",
+    "pg-mem": "^3.0.14",
+    "supertest": "^7.2.2",
+    "vitest": "^5.0.0"
   }
 }
