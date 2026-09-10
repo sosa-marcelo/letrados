@@ -20,8 +20,6 @@ const DIR_ESTATICOS = resolve(__dirname, '../../frontend/dist');
 export function crearApp() {
   const app = express();
 
-  app.use(express.json());
-
   // ---------------------------------------------------------------------------
   // ORDEN DE MONTAJE — NO CAMBIAR.
   //   1. /api            -> la API siempre primero.
@@ -29,6 +27,10 @@ export function crearApp() {
   //   3. comodin -> index.html (SPA).
   // Si los estaticos o el comodin van antes que /api, en produccion el comodin
   // se traga las rutas de /api y la API deja de responder.
+  //
+  // El router de /api se termina a si mismo: adentro tiene un 404 JSON y el
+  // manejador de errores (ver api/index.js). Por eso un /api/... desconocido
+  // NUNCA llega al comodin de la SPA, exista o no frontend/dist.
   // ---------------------------------------------------------------------------
 
   // 1. API

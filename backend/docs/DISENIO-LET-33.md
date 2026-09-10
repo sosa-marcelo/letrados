@@ -133,21 +133,35 @@ para que `pg-mem` la trague.
 
 ### 3.6 Manejador de errores (LET-17)
 - `src/domain/errores.js`: clase `ErrorDominio extends Error` con `codigo`
-  (string), `estado` (number HTTP) y `detalles` (array, default `[]`).
-  Helpers: `noImplementado()`, `datosInvalidos(detalles)`, etc. — se agregan
-  segun se necesiten.
-- `src/api/middlewares/manejadorErrores.js`: ultimo middleware. Forma unica:
-  ```json
-  { "error": { "codigo": "...", "mensaje": "...", "detalles": [] } }
-  ```
-  - `ErrorDominio` -> usa su `codigo`/`estado`/`mensaje`/`detalles`.
-  - Cualquier otro error -> 500 `ERROR_INTERNO`, mensaje generico. **Nunca**
-    manda stack ni detalle interno al cliente.
-  - Loguea con el `registrador`, que **redacta** `contrasena`, `contrasena_hash`,
-    `token`, `authorization` (RNF-01).
-- `src/api/middlewares/noEncontrado.js`: 404 `RECURSO_NO_ENCONTRADO` en JSON para
-  rutas `/api/*` que no existen.
-- `src/infra/registrador.js`: wrapper mínimo sobre `console` con redaccion.
+  (string), `estado` (number HTTP) y `detalles` (array, default `[]`). El texto
+  para el usuario va en `error.message` (via `super(mensaje)`). Fabricas:
+  `noImplementado()`, `datosInvalidos(detalles)`, `rutaNoEncontrada(mensaje)`.
+- `src/api/middlewares/manejadorErrores.js` y `rutaNoEncontrada.js` viven **dentro
+  del router de `/api`** (`api/index.js`), en este orden al final: rutas ->
+  `rutaNoEncontrada` -> `manejadorErrores`. Estar dentro del router hace que el
+  manejador solo aplique a `/api`: si falla algo sirviendo la SPA, no se devuelve
+  JSON.
+  - `rutaNoEncontrada`: cualquier `/api/...` sin match -> `next()` con un
+    `ErrorDominio('RUTA_NO_ENCONTRADA', 404)`. Sin esto, el comodin de la SPA
+    responde `index.html` con 200 a rutas de API mal escritas (bug encontrado al
+    integrar LET-5 + LET-6).
+  - `manejadorErrores`: forma unica
+    `{ "error": { "codigo", "mensaje", "detalles": [] } }`.
+    - `ErrorDominio` -> su `codigo`/`estado`/`message`/`detalles`.
+    - Cualquier otro error -> 500 `ERROR_INTERNO`, mensaje generico. **Nunca**
+      manda stack ni detalle interno al cliente.
+    - Registra con el `registrador`: 500 por `error`, 4xx por `advertencia`.
+      Solo `{ metodo, ruta, codigo, estado }` (+ el error para los 500, del lado
+      del servidor). **Nunca** el cuerpo de la peticion (RNF-01).
+- `src/infra/registrador.js`: wrapper sobre `console` que **redacta** en
+  profundidad las claves sensibles (`contrasena*`, `contrasena_hash`, `token`,
+  `token_hash`, `authorization`, `jwt`, `secreto`, ...) antes de escribir.
+  `redactar(valor)` exportada aparte.
+- **Guarda de uso unico en `data/tokens.js` (traida a LET-17):** `marcarTokenUsado`
+  suma `AND usado_en IS NULL` al `UPDATE`. Lo convierte en un compare-and-swap:
+  ante dos peticiones simultaneas con el mismo token, solo una recibe la fila, la
+  otra recibe `null`. No es regla de negocio; es el mecanismo que hace aplicable
+  el "un solo uso" que `domain` no puede garantizar entre dos consultas.
 
 ### 3.7 Rutas de auth (LET-18)
 - **Solo se congela el contrato.** Las reglas de negocio son de otras epicas.
@@ -182,7 +196,7 @@ para que `pg-mem` la trague.
 | `SESION_INVALIDA` | 401 | Bearer ausente o invalido |
 | `TOKEN_INVALIDO` | 400 | token de recuperacion malo/vencido/usado |
 | `NO_IMPLEMENTADO` | 501 | funcion de dominio todavia sin implementar |
-| `RECURSO_NO_ENCONTRADO` | 404 | ruta `/api/*` inexistente |
+| `RUTA_NO_ENCONTRADA` | 404 | ruta `/api/*` inexistente |
 | `ERROR_INTERNO` | 500 | cualquier error no controlado |
 
 ## 5. Que se puede probar hoy y que no
