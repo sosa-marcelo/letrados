@@ -1,0 +1,11 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"pendiente: LET-6 inicializa Vite\" && exit 0",
+    "build": "echo \"pendiente: LET-6 inicializa Vite\" && exit 0",
+    "test": "echo \"El frontend no lleva pruebas automatizadas en el ciclo 1\" && exit 0"
+  }
+}
