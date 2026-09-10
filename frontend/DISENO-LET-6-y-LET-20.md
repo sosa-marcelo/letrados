@@ -141,12 +141,13 @@ mergear). **Se avisa al integrador** por si prefiere otra cosa.
 El brief: "El color pleno del paso tiene que ser un parámetro, no algo fijo
 dentro del componente". Cada pantalla de las otras épicas pasa su color.
 
-**Decisión:** cada componente recibe `pleno` y (opcional) `complementario` como
-strings de color CSS y los publica como custom properties en su elemento raíz:
-`style={{ '--pleno': pleno, '--complementario': complementario }}`. Los `.css`
-referencian `var(--pleno)` / `var(--complementario)`. Si no se pasa
-`complementario`, se deriva con `estilos/pleno.js` (`complementarioDe`):
-verde↔naranja, y tinta→naranja.
+**Decisión:** cada componente recibe `pleno` (el color del paso) y opcionalmente
+`complementario`, y publica en su elemento raíz las custom properties que su
+`.css` necesita. `Campo` y `Lema` usan `--complementario` (foco de teclado y
+palabra resaltada). `Pastilla` deriva `--pastilla-fondo` (el complementario) y
+`--pastilla-texto` (legible sobre ese fondo). `estilos/pleno.js` centraliza las
+derivaciones: `complementarioDe` (verde↔naranja, tinta→naranja) y `textoSobre`
+(crema sobre verde, tinta sobre naranja).
 
 Mapa de pasos (de la hoja de sistema, para que las épicas lo usen):
 
@@ -184,13 +185,24 @@ redondea a grilla de 8.
 **`Pastilla`** (`componentes/Pastilla.jsx` + `.css`) — el botón
 - props: `children`, `estado='normal'` (`'normal' | 'cargando' | 'exito'`),
   `pleno?`, `tipo='button'`, `...resto`.
-- base: fondo `var(--pleno, var(--verde))`, texto `--crema`, borde
-  `2px solid --tinta`, radio `999px`, alto `48px`, Bricolage 800.
+- **En reposo el fondo es el COMPLEMENTARIO del paso, no el pleno** (naranja
+  sobre verde, verde sobre naranja): si fuera del color del fondo pleno de la
+  pantalla, sólo el borde lo separaría. La prop sigue siendo `pleno` (el color
+  del paso, que es lo que la pantalla sabe) y el componente deriva el fondo con
+  `complementarioDe(pleno)` y el texto con `textoSobre(fondo)` (crema sobre
+  verde, tinta sobre naranja). Se publican como `--pastilla-fondo` /
+  `--pastilla-texto`. Borde `2px solid --tinta`, radio `999px`, alto `48px`,
+  Bricolage 800.
+  *(Corrección post-review: la spec inicial decía "fondo verde, texto crema";
+  las cinco maquetas muestran el botón siempre en el complementario. Manda la
+  maqueta.)*
 - `cargando`: pierde el color de fondo (pasa a `--hundido`), muestra un aro que
   gira (`border-top-color: var(--naranja)`), `disabled`, `aria-busy`. **Mismas
   dimensiones**: el contenido normal se oculta con `visibility:hidden` y el aro
-  va en `position:absolute` centrado, así no salta nada.
-- `exito`: fondo `--verde`, tilde (SVG) + texto, `disabled`.
+  va en `position:absolute` centrado, así no salta nada. (Es exactamente lo que
+  dibuja la maqueta *Recuperar*: ahí el botón está en estado de carga, no es el
+  reposo del paso tinta.)
+- `exito`: fondo `--verde`, texto `--crema`, tilde (SVG) + texto, `disabled`.
 
 **`Lema`** (`componentes/Lema.jsx` + `.css`) — el titular grande
 - props: `texto` (con la palabra a resaltar entre asteriscos, p. ej.
@@ -248,13 +260,24 @@ para poder verlos.
 - [x] Commit LET-6
 
 ### LET-20 — rama `LET-20-componentes-base` (sale de LET-6)
-- [ ] Crear rama
-- [ ] `src/estilos/pleno.js` (`complementarioDe`)
-- [ ] `componentes/Tarjeta.jsx` + `.css`
-- [ ] `componentes/Campo.jsx` + `.css`
-- [ ] `componentes/Pastilla.jsx` + `.css`
-- [ ] `componentes/Lema.jsx` + `.css`
-- [ ] `paginas/Muestra.jsx` completa en `/muestra`
-- [ ] Probar en el navegador: reposo, foco (Tab), error, cargando, éxito
-- [ ] Commit LET-20
-- [ ] Reportar al integrador
+- [x] Crear rama
+- [x] `src/estilos/pleno.js` (`complementarioDe`)
+- [x] `componentes/Tarjeta.jsx` + `.css`
+- [x] `componentes/Campo.jsx` + `.css`
+- [x] `componentes/Pastilla.jsx` + `.css`
+- [x] `componentes/Lema.jsx` + `.css`
+- [x] `paginas/Muestra.jsx` completa en `/muestra`
+- [x] Probar en el navegador: reposo, foco (Tab), error, cargando, éxito — verificado en Chrome
+      con los dos pasos (verde y naranja): el contorno de foco usa el complementario correcto,
+      el error marca campo + aviso role="alert", la pastilla cargando no salta y éxito es verde
+      con tilde. Layout responsive revisado por código (el resize del navegador no tomó).
+- [x] Commit LET-20
+- [x] Reportar al integrador
+
+### Seguimiento post-review del integrador
+- [ ] Cliente HTTP: si la respuesta es OK y el `content-type` no es JSON (y no
+      es 204/205 ni cuerpo vacío), lanzar `ErrorApi` con `codigo:
+      'RESPUESTA_NO_JSON'` en vez de devolver `null` como éxito. Motivo: hoy la
+      SPA se traga las rutas desconocidas de la API y devuelve 200 text/html;
+      el cliente no debe depender de que el servidor se porte bien. (back
+      arregla la causa en LET-17, esto es defensa del lado del cliente.)

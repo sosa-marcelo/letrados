@@ -1,0 +1,56 @@
+.campo {
+  display: block;
+  margin-bottom: var(--entre-campos);
+}
+
+.campo__etiqueta {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--texto-etiqueta);
+  font-weight: var(--peso-etiqueta);
+  color: var(--gris);
+}
+
+.campo__input {
+  width: 100%;
+  min-height: var(--alto-control);
+  background: var(--hundido);
+  border: none;
+  border-radius: var(--radio-campo);
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 15.5px;
+  color: var(--tinta);
+  box-shadow: inset 0 2px 0 rgba(20, 20, 20, 0.09);
+}
+
+.campo__input::placeholder {
+  color: var(--gris);
+}
+
+/* Foco de teclado: contorno de 3 px separado 2 px, en el complementario del paso. */
+.campo__input:focus-visible {
+  outline: 3px solid var(--complementario, var(--naranja));
+  outline-offset: 2px;
+}
+
+.campo--error .campo__input {
+  box-shadow: inset 0 0 0 2px var(--rojo);
+  color: var(--tinta);
+}
+
+.campo__pista {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--gris);
+}
+
+.campo__error {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--rojo);
+}

@@ -1,0 +1,27 @@
+.tarjeta {
+  display: block;
+  width: 100%;
+  max-width: var(--ancho-tarjeta);
+  background: var(--crema);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-dura-movil);
+  padding: var(--relleno-tarjeta-movil);
+}
+
+.tarjeta__titulo {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: var(--texto-titulo-tarjeta);
+  line-height: var(--interlinea-titulo-tarjeta);
+  letter-spacing: -0.028em;
+  margin: 0 0 18px;
+}
+
+@media (min-width: 480px) {
+  .tarjeta {
+    box-shadow: var(--sombra-dura);
+    padding: var(--relleno-tarjeta);
+  }
+}
