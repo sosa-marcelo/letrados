@@ -148,11 +148,24 @@ para que `pg-mem` la trague.
   - `manejadorErrores`: forma unica
     `{ "error": { "codigo", "mensaje", "detalles": [] } }`.
     - `ErrorDominio` -> su `codigo`/`estado`/`message`/`detalles`.
+    - Error del body-parser (`error.type === 'entity.parse.failed'`) -> se mapea a
+      `ErrorDominio('JSON_INVALIDO', 400)`. Es culpa del cliente, no puede salir
+      500; el mensaje no repite lo que mando el cliente. Esto exige que
+      `express.json()` este **dentro** del router de `/api` (lo esta): si
+      estuviera a nivel de app, el error de parseo saldria por el manejador por
+      defecto de Express (HTML + volcado de pila) sin pasar por el nuestro.
     - Cualquier otro error -> 500 `ERROR_INTERNO`, mensaje generico. **Nunca**
       manda stack ni detalle interno al cliente.
     - Registra con el `registrador`: 500 por `error`, 4xx por `advertencia`.
       Solo `{ metodo, ruta, codigo, estado }` (+ el error para los 500, del lado
-      del servidor). **Nunca** el cuerpo de la peticion (RNF-01).
+      del servidor).
+
+  **REGLA (RNF-01), no detalle de implementacion: el cuerpo de la peticion
+  (`req.body`) NO se registra nunca.** Ni redactado. Puede traer contrasenas o
+  tokens, y la regla "no se loguea, punto" es la que no se rompe cuando alguien
+  agrega un campo sensible nuevo dentro de seis meses. El `redactar` recursivo
+  del `registrador` es para el resto del codigo, no una licencia para loguear el
+  body.
 - `src/infra/registrador.js`: wrapper sobre `console` que **redacta** en
   profundidad las claves sensibles (`contrasena*`, `contrasena_hash`, `token`,
   `token_hash`, `authorization`, `jwt`, `secreto`, ...) antes de escribir.
@@ -164,27 +177,62 @@ para que `pg-mem` la trague.
   el "un solo uso" que `domain` no puede garantizar entre dos consultas.
 
 ### 3.7 Rutas de auth (LET-18)
-- **Solo se congela el contrato.** Las reglas de negocio son de otras epicas.
-- `src/api/rutas/auth.js` monta las 5 rutas. Cada controlador:
-  1. valida la entrada (400 `DATOS_INVALIDOS` con `detalles`),
-  2. llama a una funcion de `src/domain/auth.js`,
-  3. da forma a la respuesta.
-- `src/domain/auth.js`: 5 funciones (`registrar`, `iniciarSesion`, `usuarioActual`,
-  `pedirRecuperacion`, `confirmarRecuperacion`) que hoy hacen
-  `throw new ErrorDominio('NO_IMPLEMENTADO', 501, 'Aun no implementado')`.
-- `src/api/middlewares/autenticar.js`: lee `Authorization: Bearer`, verifica el
-  JWT (HS256, `JWT_SECRETO`), deja `req.usuario = { id }`. Si falta o es invalido:
-  401 `SESION_INVALIDA`. Se usa en `GET /api/auth/yo`.
+- **Solo se congela el contrato.** Las reglas de negocio son de otras epicas
+  (LET-12 a LET-15). Cada epica siguiente rellena su funcion de dominio y no toca
+  ni rutas ni controladores.
+- `src/api/rutas/auth.js` monta las 5 rutas en un `Router`, montado en
+  `api/index.js` despues de `express.json()` y de `rutasSalud`, antes de
+  `rutaNoEncontrada`. Cada controlador:
+  1. valida la entrada (`validar*` lanza `DATOS_INVALIDOS` 400 con `detalles`),
+  2. `await` a una funcion de `src/domain/auth.js` (Express 5 propaga el rechazo
+     al manejador; no hace falta try/catch),
+  3. da forma a la respuesta con `vistaPublica(usuario)` = `{ id, nombre, email }`
+     — el hash y `creado_en` nunca salen por aca.
+- `src/domain/auth.js`: `registrar`, `iniciarSesion`, `usuarioActual`,
+  `pedirRecuperacion`, `confirmarRecuperacion`. Hoy todas hacen
+  `throw noImplementado('... (LET-XX)')` -> 501 `NO_IMPLEMENTADO`. Firmas y JSDoc
+  ya definitivos.
+- `src/api/middlewares/autenticar.js`: lee `Authorization: Bearer <token>`,
+  `jwt.verify` con `algorithms: ['HS256']` y `obtenerConfig().jwtSecreto`, deja
+  `req.usuario = { id: String(carga.sub) }`. Header ausente, esquema != Bearer,
+  firma mala o token vencido -> 401 `SESION_INVALIDA`, sin distinguir el caso.
+  Se usa solo en `GET /api/auth/yo`. Logout del lado del cliente, sin revocacion.
 - Dependencia nueva: `jsonwebtoken`.
-- Validaciones de entrada: helpers propios en `src/api/validacion.js` (sin libreria).
-  - registro: `nombre` (1..80), `email` (formato + <=254), `contrasena` (>=8).
-  - login: `email`, `contrasena` presentes.
+- Validaciones de entrada: helpers propios en `src/api/validacion.js` (sin
+  libreria; son cuatro formularios simples). Cada `validar*` junta TODOS los
+  errores en `detalles` (un `{ campo, mensaje }` por problema) y recien ahi lanza.
+  - registro: `nombre` (obligatorio, <=80), `email` (formato + <=254),
+    `contrasena` (>=8). Devuelve `{ nombre, email, contrasena }` con los textos
+    recortados en los bordes.
+  - login: `email` y `contrasena` presentes.
   - recuperacion: `email` con formato.
   - recuperacion/confirmar: `token` presente, `contrasena` (>=8).
 - Reglas de contenido que son seguridad, no estetica (no se "mejoran"):
-  - login SIEMPRE `CREDENCIALES_INVALIDAS` / «Correo o contraseña incorrectos».
-  - `POST /api/auth/recuperacion` SIEMPRE 200, mismo cuerpo:
-    «Si el correo está registrado, te enviamos un enlace».
+  - login SIEMPRE `CREDENCIALES_INVALIDAS` / «Correo o contraseña incorrectos»
+    (lo fija `domain`, el controlador solo da forma).
+  - `POST /api/auth/recuperacion` SIEMPRE 200, mismo cuerpo, exista o no la
+    cuenta. `domain` (LET-14) NO debe lanzar por "correo inexistente". Durante el
+    freeze la ruta responde 501 como el resto.
+
+**Decisiones nuevas de LET-18:**
+- **Claim del user id: `sub`.** `autenticar` lee el id de `carga.sub`. Quien
+  implemente el login (LET-13) tiene que firmar el token con el id en `sub`. Si
+  se prefiere otro claim, alinearlo ANTES de LET-13.
+- **La validacion de entrada NO normaliza el correo a minusculas**, solo recorta
+  espacios para validar el formato. La normalizacion semantica es regla de
+  negocio y vive en `domain`; la base ya no depende de que la app se acuerde,
+  gracias al indice unico sobre `lower(email)` (migracion 002). Si mas adelante
+  se quiere defensa en profundidad, lowercasear tambien en `validacion.js` es
+  barato.
+- **Testeabilidad del middleware `autenticar`:** necesita `obtenerConfig()` con
+  entorno cargado. `pruebas/apoyo/entorno.js` expone `prepararEntorno()` /
+  `limpiarEntorno()` (setean `process.env` + `reiniciarConfig()`) y
+  `JWT_SECRETO_PRUEBA` para firmar tokens de prueba. Se usa en un
+  `beforeAll`/`afterAll`.
+- Contrato fijado por `pruebas/api/auth.prueba.js`: por cada ruta, entrada
+  invalida -> 400 `DATOS_INVALIDOS` con `detalles`; entrada valida -> 501
+  `NO_IMPLEMENTADO`; `GET /api/auth/yo` sin/mal Bearer -> 401 `SESION_INVALIDA`,
+  con Bearer valido -> pasa la sesion y llega al dominio (501).
 
 ## 4. Codigos de error (formato unico)
 
@@ -197,6 +245,7 @@ para que `pg-mem` la trague.
 | `TOKEN_INVALIDO` | 400 | token de recuperacion malo/vencido/usado |
 | `NO_IMPLEMENTADO` | 501 | funcion de dominio todavia sin implementar |
 | `RUTA_NO_ENCONTRADA` | 404 | ruta `/api/*` inexistente |
+| `JSON_INVALIDO` | 400 | el cuerpo de la peticion no es JSON valido |
 | `ERROR_INTERNO` | 500 | cualquier error no controlado |
 
 ## 5. Que se puede probar hoy y que no
