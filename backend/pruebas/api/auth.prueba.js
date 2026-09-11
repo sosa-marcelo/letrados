@@ -94,15 +94,6 @@ describe('POST /api/auth/recuperacion', () => {
     expect(r.status).toBe(400);
     expect(r.body.error.codigo).toBe('DATOS_INVALIDOS');
   });
-
-  it('email valido -> 501 durante el freeze (dominio LET-14)', async () => {
-    const r = await request(app())
-      .post('/api/auth/recuperacion')
-      .send({ email: 'ana@ejemplo.com' });
-
-    expect(r.status).toBe(501);
-    expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
-  });
 });
 
 describe('POST /api/auth/recuperacion/confirmar', () => {
@@ -115,14 +106,5 @@ describe('POST /api/auth/recuperacion/confirmar', () => {
     const campos = r.body.error.detalles.map((d) => d.campo);
     expect(campos).toContain('token');
     expect(campos).toContain('contrasena');
-  });
-
-  it('datos validos -> 501 NO_IMPLEMENTADO (dominio LET-15)', async () => {
-    const r = await request(app())
-      .post('/api/auth/recuperacion/confirmar')
-      .send({ token: 'abc123', contrasena: 'unaclavelarga1' });
-
-    expect(r.status).toBe(501);
-    expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
   });
 });

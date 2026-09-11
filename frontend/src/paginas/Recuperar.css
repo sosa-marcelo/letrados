@@ -1,0 +1,102 @@
+/*
+ * Ajustes propios de Recuperar / Enlace enviado sobre el layout compartido
+ * (PantallaAuth.css, congelado — no se toca acá). Valores de
+ * PlenoRecuperar.dc.html y PlenoEnviado.dc.html.
+ */
+
+/* Sólo el estado "pedir" (paso tinta) tiene la sombra de la tarjeta en
+   naranja en vez de tinta — es así en la maqueta, no se generaliza. */
+.recuperar__tarjeta {
+  box-shadow: 9px 9px 0 var(--naranja);
+}
+
+@media (max-width: 479px) {
+  .recuperar__tarjeta {
+    box-shadow: 6px 6px 0 var(--naranja);
+  }
+}
+
+.recuperar__dato {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 2px dashed var(--linea);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--gris);
+}
+
+.recuperar__dato svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--verde);
+}
+
+.recuperar__sello {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--verde);
+  color: var(--crema);
+  border: var(--borde);
+  border-radius: var(--radio-boton);
+  padding: 7px 16px 7px 13px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 13.5px;
+  margin-bottom: 20px;
+}
+
+.recuperar__lista {
+  border: 2px solid rgba(20, 20, 20, 0.14);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+
+.recuperar__lista div {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--gris);
+}
+
+.recuperar__lista div + div {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 20, 20, 0.1);
+}
+
+.recuperar__lista svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--verde);
+}
+
+.recuperar__volver {
+  width: 100%;
+  background: none;
+  border: var(--borde);
+  border-radius: var(--radio-boton);
+  padding: 13px 18px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--tinta);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.recuperar__volver:hover {
+  background: var(--naranja);
+}
+
+.recuperar__volver:focus-visible {
+  outline: 3px solid var(--verde);
+  outline-offset: 2px;
+}

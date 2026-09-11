@@ -76,3 +76,23 @@ export async function buscarUsuarioPorEmail(email, ejecutar = consultar) {
   );
   return rows[0] ?? null;
 }
+
+/**
+ * Actualiza la contrasena de un usuario. Sin el hash: `domain` ya la hasheo
+ * antes de llamar aca.
+ *
+ * @param {string | number} id
+ * @param {string} contrasena_hash
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<{ id: string, nombre: string, email: string } | null>}
+ */
+export async function actualizarContrasena(id, contrasena_hash, ejecutar = consultar) {
+  const { rows } = await ejecutar(
+    `UPDATE usuarios
+        SET contrasena_hash = $2
+      WHERE id = $1
+      RETURNING id, nombre, email`,
+    [id, contrasena_hash],
+  );
+  return rows[0] ?? null;
+}

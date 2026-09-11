@@ -74,6 +74,16 @@ export function emailDuplicado(
 
 /**
  * @param {string} [mensaje]
+ * @returns {ErrorDominio} 400 TOKEN_INVALIDO
+ */
+export function tokenInvalido(
+  mensaje = 'El enlace no es valido o ya vencio',
+) {
+  return new ErrorDominio('TOKEN_INVALIDO', 400, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
  * @returns {ErrorDominio} 401 CREDENCIALES_INVALIDAS
  */
 export function credencialesInvalidas(

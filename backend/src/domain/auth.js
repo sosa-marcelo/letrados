@@ -1,7 +1,28 @@
-import { noImplementado, emailDuplicado, credencialesInvalidas, sesionInvalida } from './errores.js';
+import { createHash, randomBytes } from 'node:crypto';
+
+import {
+  emailDuplicado,
+  credencialesInvalidas,
+  sesionInvalida,
+  tokenInvalido,
+} from './errores.js';
 import { hashear, verificar as verificarContrasena } from '../infra/hash.js';
 import { firmar } from '../infra/jwt.js';
-import { insertarUsuario, buscarUsuarioPorEmail, buscarUsuarioPorId } from '../data/usuarios.js';
+import { enviarCorreo } from '../infra/correo.js';
+import { obtenerConfig } from '../infra/config.js';
+import { registrador } from '../infra/registrador.js';
+import {
+  insertarUsuario,
+  buscarUsuarioPorEmail,
+  buscarUsuarioPorId,
+  actualizarContrasena,
+} from '../data/usuarios.js';
+import {
+  insertarToken,
+  buscarTokenVigentePorHash,
+  marcarTokenUsado,
+  invalidarTokensPendientesDeUsuario,
+} from '../data/tokens.js';
 
 /**
  * Hash bcrypt de coste 12 de un valor descartable (un UUID al azar, generado
@@ -17,7 +38,7 @@ const HASH_FICTICIO = '$2b$12$tteIclI8DI10MR5pEIt3W.1Dzjp9uTqpZzV8WB6jDXhX9GGWCU
  * Reglas de negocio de autenticacion.
  *
  * LET-18 congelo el contrato: cada funcion existe con su firma definitiva.
- * LET-14 y LET-15 quedan pendientes y siguen lanzando `NO_IMPLEMENTADO` (501).
+ * Las cuatro funciones estan implementadas: registro, login, usuario actual y recuperacion.
  *
  * Ninguna funcion conoce HTTP: reciben datos planos y devuelven datos planos o
  * lanzan `ErrorDominio`.
@@ -109,28 +130,104 @@ export async function usuarioActual(usuarioId, { ejecutar } = {}) {
   return { id: String(fila.id), nombre: fila.nombre, email: fila.email };
 }
 
+/** Cuanto vive un token de recuperacion antes de vencer. */
+const MINUTOS_DE_VIGENCIA = 30;
+
 /**
- * Inicia una recuperacion de contrasena. No revela si el correo existe: el
- * controlador responde siempre igual.
- * Epica LET-14.
+ * SHA-256 en hexadecimal del token en claro: lo unico que se guarda en la
+ * base (`tokens_recuperacion.token_hash`). Interna del modulo: LET-15 la va a
+ * reutilizar para verificar el token que llega en la confirmacion, no se
+ * exporta para no volverla parte del contrato publico antes de tiempo.
  *
- * @param {{ email: string }} _datos
+ * @param {string} token
+ * @returns {string}
+ */
+function hashDeToken(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Inicia una recuperacion de contrasena. El controlador responde siempre el
+ * mismo 200: esta funcion nunca revela si el correo existe.
+ *
+ * - Correo inexistente: se vuelve sin error y sin tocar la base.
+ * - Se invalidan los tokens pendientes del usuario antes de crear uno nuevo:
+ *   nunca queda mas de un enlace vigente a la vez.
+ * - El token en claro sale de `randomBytes`, viaja una unica vez en el correo
+ *   y solo su hash queda en la base.
+ * - Si el envio del correo falla, el error se registra (sin el enlace ni el
+ *   token: RNF-01) pero no se propaga. Que aparezca un 500 justo cuando la
+ *   cuenta existe delataria lo mismo que un mensaje distinto.
+ *
+ * @param {{ email: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor, enviar?: typeof enviarCorreo }} [opciones] -
+ *   `ejecutar` para las pruebas; `enviar` tambien, por si se quiere espiar o
+ *   evitar el envio real sin tocar `CORREO_PROVEEDOR`.
  * @returns {Promise<void>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function pedirRecuperacion(_datos) {
-  throw noImplementado('El pedido de recuperacion todavia no esta implementado (LET-14)');
+export async function pedirRecuperacion({ email }, { ejecutar, enviar = enviarCorreo } = {}) {
+  const fila = await buscarUsuarioPorEmail(email.trim().toLowerCase(), ejecutar);
+  if (!fila) return; // termina igual que si existiera: la ruta responde lo mismo
+
+  await invalidarTokensPendientesDeUsuario(fila.id, ejecutar);
+
+  const token = randomBytes(32).toString('base64url');
+  await insertarToken(
+    {
+      usuario_id: fila.id,
+      token_hash: hashDeToken(token),
+      expira_en: new Date(Date.now() + MINUTOS_DE_VIGENCIA * 60 * 1000),
+    },
+    ejecutar,
+  );
+
+  const enlace = `${obtenerConfig().urlFrontend}/recuperar/${token}`;
+  try {
+    await enviar({
+      para: fila.email,
+      asunto: 'Recupera tu contrasena de Letrados',
+      texto:
+        `Pediste recuperar tu contrasena de Letrados. Entra a este enlace ` +
+        `para elegir una nueva:\n\n${enlace}\n\n` +
+        `El enlace vence en ${MINUTOS_DE_VIGENCIA} minutos y sirve una sola vez. ` +
+        `Si no lo pediste vos, podes ignorar este mensaje.`,
+    });
+  } catch (error) {
+    registrador.error(
+      'No se pudo enviar el correo de recuperacion',
+      { usuarioId: fila.id },
+      error,
+    );
+  }
 }
 
 /**
  * Completa una recuperacion: valida el token de un solo uso y cambia la
- * contrasena. Token malo, vencido o usado -> `TOKEN_INVALIDO`.
- * Epica LET-15.
+ * contrasena. Token inexistente, vencido o ya usado dan el mismo error
+ * (`TOKEN_INVALIDO`), sin distinguir cual fue.
  *
- * @param {{ token: string, contrasena: string }} _datos
+ * El sellado del token (`marcarTokenUsado`) va ANTES de cambiar la
+ * contrasena. Al reves, dos peticiones simultaneas con el mismo enlace
+ * cambiarian la contrasena dos veces; sellando primero, si el cambio falla
+ * despues, el enlace queda quemado y la persona pide otro (peor para ella,
+ * pero seguro). `marcarTokenUsado` devuelve `null` si el token ya estaba
+ * usado: esa `null` es la proteccion contra dos peticiones a la vez.
+ *
+ * No inicia sesion ni devuelve nada: el frontend lleva al login.
+ *
+ * @param {{ token: string, contrasena: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
  * @returns {Promise<void>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function confirmarRecuperacion(_datos) {
-  throw noImplementado('La confirmacion de recuperacion todavia no esta implementada (LET-15)');
+export async function confirmarRecuperacion({ token, contrasena }, { ejecutar } = {}) {
+  const fila = await buscarTokenVigentePorHash(hashDeToken(token), ejecutar);
+  if (!fila) throw tokenInvalido();
+
+  // Sellar antes de cambiar nada: si dos peticiones llegan con el mismo
+  // enlace, solo una recibe la fila y la otra queda afuera.
+  const usado = await marcarTokenUsado(fila.id, ejecutar);
+  if (!usado) throw tokenInvalido();
+
+  await actualizarContrasena(fila.usuario_id, await hashear(contrasena), ejecutar);
+  await invalidarTokensPendientesDeUsuario(fila.usuario_id, ejecutar);
 }
