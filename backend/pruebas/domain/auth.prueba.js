@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 
-import { registrar, pedirRecuperacion } from '../../src/domain/auth.js';
+import { registrar, pedirRecuperacion, confirmarRecuperacion } from '../../src/domain/auth.js';
 import { verificar as verificarToken } from '../../src/infra/jwt.js';
 import { verificar as verificarContrasena } from '../../src/infra/hash.js';
 import { obtenerConfig } from '../../src/infra/config.js';
+import { insertarToken } from '../../src/data/tokens.js';
 import { crearBdMemoria } from '../apoyo/bd-memoria.js';
 import { prepararEntorno, limpiarEntorno } from '../apoyo/entorno.js';
 
@@ -204,5 +205,110 @@ describe('pedirRecuperacion', () => {
 
     // El token ya se habia insertado antes del intento de envio.
     expect(await filasDeTokens()).toHaveLength(1);
+  });
+});
+
+/**
+ * Pide una recuperacion de verdad (via `pedirRecuperacion`) y devuelve el
+ * token en claro, sacado del enlace que le llego a `enviar`.
+ */
+async function generarTokenDeRecuperacion(email = DATOS.email) {
+  const enviar = crearEnviarFalso();
+  await pedirRecuperacion({ email }, { ejecutar, enviar });
+
+  const { urlFrontend } = obtenerConfig();
+  const patron = new RegExp(
+    `${urlFrontend.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/recuperar/([^\\s]+)`,
+  );
+  const [, token] = enviar.llamadas[0].texto.match(patron);
+  return token;
+}
+
+describe('confirmarRecuperacion', () => {
+  it('token valido -> la contrasena guardada verifica con la nueva, ya no con la vieja', async () => {
+    const { usuario } = await registrar(DATOS, { ejecutar });
+    const token = await generarTokenDeRecuperacion();
+    const contrasenaNueva = 'otraclave2';
+
+    await confirmarRecuperacion({ token, contrasena: contrasenaNueva }, { ejecutar });
+
+    const { rows } = await ejecutar(
+      'SELECT contrasena_hash FROM usuarios WHERE id = $1',
+      [usuario.id],
+    );
+    const hash = rows[0].contrasena_hash;
+
+    expect(await verificarContrasena(contrasenaNueva, hash)).toBe(true);
+    expect(await verificarContrasena(DATOS.contrasena, hash)).toBe(false);
+  });
+
+  it('el token usado queda con usado_en sellado', async () => {
+    await registrar(DATOS, { ejecutar });
+    const token = await generarTokenDeRecuperacion();
+
+    await confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar });
+
+    const [fila] = await filasDeTokens();
+    expect(fila.usado_en).not.toBeNull();
+  });
+
+  it('el mismo token dos veces -> la segunda vez TOKEN_INVALIDO 400', async () => {
+    await registrar(DATOS, { ejecutar });
+    const token = await generarTokenDeRecuperacion();
+
+    await confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar });
+
+    await expect(
+      confirmarRecuperacion({ token, contrasena: 'unaterceraclave3' }, { ejecutar }),
+    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', estado: 400 });
+  });
+
+  it('token inexistente -> TOKEN_INVALIDO', async () => {
+    await expect(
+      confirmarRecuperacion(
+        { token: 'esto-no-es-un-token-real', contrasena: 'unaclave2' },
+        { ejecutar },
+      ),
+    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', estado: 400 });
+  });
+
+  it('token vencido -> TOKEN_INVALIDO', async () => {
+    const { usuario } = await registrar(DATOS, { ejecutar });
+    const tokenVencido = 'token-de-prueba-que-ya-vencio';
+
+    await insertarToken(
+      {
+        usuario_id: usuario.id,
+        token_hash: createHash('sha256').update(tokenVencido).digest('hex'),
+        expira_en: new Date(Date.now() - 60_000), // vencio hace un minuto
+      },
+      ejecutar,
+    );
+
+    await expect(
+      confirmarRecuperacion({ token: tokenVencido, contrasena: 'unaclave2' }, { ejecutar }),
+    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', estado: 400 });
+  });
+
+  it('si el usuario tenia otro enlace pendiente, queda invalidado al terminar', async () => {
+    const { usuario } = await registrar(DATOS, { ejecutar });
+    const token = await generarTokenDeRecuperacion();
+
+    // Otro enlace pendiente para el mismo usuario, insertado directo (no via
+    // pedirRecuperacion, que ya lo hubiera invalidado antes de crear `token`).
+    const otroTokenHash = createHash('sha256').update('otro-enlace-pendiente').digest('hex');
+    await insertarToken(
+      {
+        usuario_id: usuario.id,
+        token_hash: otroTokenHash,
+        expira_en: new Date(Date.now() + 30 * 60 * 1000),
+      },
+      ejecutar,
+    );
+
+    await confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar });
+
+    const filaOtro = (await filasDeTokens()).find((f) => f.token_hash === otroTokenHash);
+    expect(filaOtro.usado_en).not.toBeNull();
   });
 });
