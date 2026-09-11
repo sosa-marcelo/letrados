@@ -61,3 +61,13 @@ export function jsonInvalido(
 ) {
   return new ErrorDominio('JSON_INVALIDO', 400, mensaje);
 }
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 409 EMAIL_DUPLICADO
+ */
+export function emailDuplicado(
+  mensaje = 'Ya existe una cuenta con ese correo',
+) {
+  return new ErrorDominio('EMAIL_DUPLICADO', 409, mensaje);
+}
