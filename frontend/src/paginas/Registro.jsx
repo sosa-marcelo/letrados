@@ -5,9 +5,9 @@ import Campo from '../componentes/Campo.jsx'
 import Lema from '../componentes/Lema.jsx'
 import Pastilla from '../componentes/Pastilla.jsx'
 import Tarjeta from '../componentes/Tarjeta.jsx'
+import { useSesion } from '../contexto/Sesion.jsx'
 import { complementarioDe, NARANJA } from '../estilos/pleno.js'
 import { ErrorApi, enviar } from '../servicios/cliente.js'
-import { guardarToken } from '../servicios/token.js'
 import './PantallaAuth.css'
 import './Registro.css'
 
@@ -21,6 +21,7 @@ const REQUISITOS = [
 
 export default function Registro() {
   const navigate = useNavigate()
+  const { entrar } = useSesion()
 
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
@@ -35,8 +36,8 @@ export default function Registro() {
     setErroresCampo({})
     setEnviando(true)
     try {
-      const { token } = await enviar('/auth/registro', { nombre, email, contrasena })
-      guardarToken(token)
+      const { token, usuario } = await enviar('/auth/registro', { nombre, email, contrasena })
+      entrar(token, usuario)
       navigate('/')
     } catch (error) {
       if (!(error instanceof ErrorApi)) {
