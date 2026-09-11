@@ -1,0 +1,27 @@
+/*
+ * Ajustes propios de Crear cuenta sobre el layout compartido
+ * (PantallaAuth.css, congelado — no se toca acá). Valores de PlenoRegistro.dc.html.
+ */
+
+/* El campo de contraseña no deja su margen habitual: lo maneja la lista de
+   requisitos que sigue, para que el espacio quede igual al de la maqueta. */
+.registro__campo-clave .campo {
+  margin-bottom: 0;
+}
+
+.registro__requisitos {
+  margin-top: 9px;
+  margin-bottom: 16px;
+}
+
+/* Enlace dentro de un error de campo: mismo estilo que los enlaces de la tarjeta. */
+.registro__enlace {
+  color: var(--tinta);
+  text-decoration: none;
+  border-bottom: 2px solid var(--complementario, var(--verde));
+  font-weight: 600;
+}
+
+.registro__enlace:hover {
+  background: var(--complementario, var(--verde));
+}

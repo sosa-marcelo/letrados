@@ -3,12 +3,36 @@
   margin-bottom: var(--entre-campos);
 }
 
+.campo__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
 .campo__etiqueta {
   display: block;
-  margin-bottom: 6px;
   font-size: var(--texto-etiqueta);
   font-weight: var(--peso-etiqueta);
   color: var(--gris);
+}
+
+.campo__mini {
+  font-size: var(--texto-etiqueta);
+  color: var(--gris);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.campo__mini:focus-visible {
+  outline: 2px solid var(--complementario, var(--naranja));
+  outline-offset: 2px;
 }
 
 .campo__input {
