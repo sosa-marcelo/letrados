@@ -1,7 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import { noImplementado, emailDuplicado, tokenInvalido } from './errores.js';
-import { hashear } from '../infra/hash.js';
+import {
+  emailDuplicado,
+  credencialesInvalidas,
+  sesionInvalida,
+  tokenInvalido,
+} from './errores.js';
+import { hashear, verificar as verificarContrasena } from '../infra/hash.js';
 import { firmar } from '../infra/jwt.js';
 import { enviarCorreo } from '../infra/correo.js';
 import { obtenerConfig } from '../infra/config.js';
@@ -9,6 +14,7 @@ import { registrador } from '../infra/registrador.js';
 import {
   insertarUsuario,
   buscarUsuarioPorEmail,
+  buscarUsuarioPorId,
   actualizarContrasena,
 } from '../data/usuarios.js';
 import {
@@ -19,10 +25,20 @@ import {
 } from '../data/tokens.js';
 
 /**
+ * Hash bcrypt de coste 12 de un valor descartable (un UUID al azar, generado
+ * una sola vez). No es un secreto de nadie: solo sirve para que
+ * `verificarContrasena` tenga algo con que comparar cuando el correo no
+ * existe, y asi la respuesta tarde lo mismo exista o no la cuenta (ver
+ * `iniciarSesion`). Coste 12 porque un coste menor comparara mas rapido que
+ * el hash real y el tiempo volveria a delatar cuentas.
+ */
+const HASH_FICTICIO = '$2b$12$tteIclI8DI10MR5pEIt3W.1Dzjp9uTqpZzV8WB6jDXhX9GGWCUv2S';
+
+/**
  * Reglas de negocio de autenticacion.
  *
  * LET-18 congelo el contrato: cada funcion existe con su firma definitiva.
- * LET-13 queda pendiente y sigue lanzando `NO_IMPLEMENTADO` (501).
+ * Las cuatro funciones estan implementadas: registro, login, usuario actual y recuperacion.
  *
  * Ninguna funcion conoce HTTP: reciben datos planos y devuelven datos planos o
  * lanzan `ErrorDominio`.
@@ -74,27 +90,44 @@ export async function registrar({ nombre, email, contrasena }, { ejecutar } = {}
 
 /**
  * Valida credenciales y devuelve una sesion. Ante cualquier fallo lanza
- * `CREDENCIALES_INVALIDAS` sin distinguir si fallo el correo o la contrasena.
- * Epica LET-13.
+ * `CREDENCIALES_INVALIDAS`, siempre con el mismo mensaje: nunca distingue si
+ * fallo el correo o la contrasena.
  *
- * @param {{ email: string, contrasena: string }} _datos
+ * Compara la contrasena aunque el usuario no exista (contra `HASH_FICTICIO`):
+ * asi las dos respuestas de error tardan lo mismo. Si solo se comparara cuando
+ * el usuario existe, el tiempo de respuesta delataria que correos estan
+ * registrados.
+ *
+ * @param {{ email: string, contrasena: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
  * @returns {Promise<{ token: string, usuario: { id: string, nombre: string, email: string } }>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function iniciarSesion(_datos) {
-  throw noImplementado('El inicio de sesion todavia no esta implementado (LET-13)');
+export async function iniciarSesion({ email, contrasena }, { ejecutar } = {}) {
+  const fila = await buscarUsuarioPorEmail(email.trim().toLowerCase(), ejecutar);
+
+  // Se compara aunque el usuario no exista, para que las dos respuestas
+  // de error tarden lo mismo: si no, el tiempo delata que cuentas existen.
+  const coincide = await verificarContrasena(contrasena, fila?.contrasena_hash ?? HASH_FICTICIO);
+  if (!fila || !coincide) throw credencialesInvalidas();
+
+  const usuario = { id: String(fila.id), nombre: fila.nombre, email: fila.email };
+  return { token: firmar(usuario.id), usuario };
 }
 
 /**
- * Devuelve los datos publicos del usuario de la sesion actual.
- * Epica LET-13.
+ * Devuelve los datos publicos del usuario de la sesion actual. El id ya viene
+ * validado por el middleware `autenticar` (sale del `sub` del JWT); si de
+ * todos modos no corresponde a nadie (usuario borrado, por ejemplo), la sesion
+ * se trata como invalida.
  *
- * @param {string} _usuarioId
+ * @param {string} usuarioId
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
  * @returns {Promise<{ id: string, nombre: string, email: string }>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function usuarioActual(_usuarioId) {
-  throw noImplementado('La consulta del usuario actual todavia no esta implementada (LET-13)');
+export async function usuarioActual(usuarioId, { ejecutar } = {}) {
+  const fila = await buscarUsuarioPorId(usuarioId, ejecutar);
+  if (!fila) throw sesionInvalida();
+  return { id: String(fila.id), nombre: fila.nombre, email: fila.email };
 }
 
 /** Cuanto vive un token de recuperacion antes de vencer. */
