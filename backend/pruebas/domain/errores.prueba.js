@@ -5,6 +5,7 @@ import {
   noImplementado,
   datosInvalidos,
   rutaNoEncontrada,
+  emailDuplicado,
 } from '../../src/domain/errores.js';
 
 describe('ErrorDominio', () => {
@@ -47,5 +48,12 @@ describe('fabricas', () => {
     expect(e.codigo).toBe('RUTA_NO_ENCONTRADA');
     expect(e.estado).toBe(404);
     expect(e.message).toBe('No existe /api/x');
+  });
+
+  it('emailDuplicado -> 409 EMAIL_DUPLICADO', () => {
+    const e = emailDuplicado();
+    expect(e.codigo).toBe('EMAIL_DUPLICADO');
+    expect(e.estado).toBe(409);
+    expect(e.message).toBe('Ya existe una cuenta con ese correo');
   });
 });
