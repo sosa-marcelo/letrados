@@ -17,6 +17,10 @@ const LARGO_MIN_CONTRASENA = 8;
 const LARGO_MAX_NOMBRE = 80;
 const LARGO_MAX_EMAIL = 254;
 
+const TIENE_LETRA = /[a-zA-Z]/;
+const TIENE_NUMERO = /[0-9]/;
+const BYTES_MAX_CONTRASENA = 72;
+
 /** @param {unknown} valor */
 function esTextoNoVacio(valor) {
   return typeof valor === 'string' && valor.trim() !== '';
@@ -28,6 +32,31 @@ function esTextoNoVacio(valor) {
 function lanzarSiHay(detalles) {
   if (detalles.length > 0) {
     throw datosInvalidos(detalles);
+  }
+}
+
+/** Reglas de una contrasena nueva. Agrega lo que encuentre a `detalles`. */
+function revisarContrasenaNueva(contrasena, detalles) {
+  if (contrasena.length < LARGO_MIN_CONTRASENA) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: `La contrasena debe tener al menos ${LARGO_MIN_CONTRASENA} caracteres`,
+    });
+    return; // si es corta, con esa queja alcanza
+  }
+
+  if (!TIENE_LETRA.test(contrasena) || !TIENE_NUMERO.test(contrasena)) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: 'La contrasena debe tener al menos una letra y un numero',
+    });
+  }
+
+  if (Buffer.byteLength(contrasena, 'utf8') > BYTES_MAX_CONTRASENA) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: `La contrasena no puede superar los ${BYTES_MAX_CONTRASENA} bytes`,
+    });
   }
 }
 
@@ -60,12 +89,7 @@ export function validarRegistro(cuerpo = {}) {
     });
   }
 
-  if (contrasena.length < LARGO_MIN_CONTRASENA) {
-    detalles.push({
-      campo: 'contrasena',
-      mensaje: `La contrasena debe tener al menos ${LARGO_MIN_CONTRASENA} caracteres`,
-    });
-  }
+  revisarContrasenaNueva(contrasena, detalles);
 
   lanzarSiHay(detalles);
   return { nombre, email, contrasena };
@@ -121,12 +145,7 @@ export function validarConfirmacionRecuperacion(cuerpo = {}) {
   if (token === '') {
     detalles.push({ campo: 'token', mensaje: 'El token es obligatorio' });
   }
-  if (contrasena.length < LARGO_MIN_CONTRASENA) {
-    detalles.push({
-      campo: 'contrasena',
-      mensaje: `La contrasena debe tener al menos ${LARGO_MIN_CONTRASENA} caracteres`,
-    });
-  }
+  revisarContrasenaNueva(contrasena, detalles);
 
   lanzarSiHay(detalles);
   return { token, contrasena };
