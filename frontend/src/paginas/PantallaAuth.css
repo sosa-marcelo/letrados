@@ -206,13 +206,23 @@
   color: var(--verde);
 }
 
-/* ≤860px: una columna. La tarjeta ya es 100% de ancho por sí sola (Tarjeta
-   tiene max-width, no un ancho fijo), así que alcanza con apilar la grilla. */
+/* ≤860px: una columna. Tarjeta tiene max-width (424px, el ancho de tarjeta
+   del sistema), no un ancho fijo: con la grilla en 1fr el ítem se estira a
+   todo el ancho de la fila y el max-width lo frena en 424px, pero queda
+   pegado al borde izquierdo (el estirado por defecto de un grid item no se
+   deshace solo al toparse con el máximo). margin-inline:auto reparte lo que
+   sobra a los dos lados y la centra. No se toca el max-width: a ≤479px la
+   pantalla ya angosta más que 424px y ahí sí ocupa el 100%, sin necesidad de
+   ningún cambio acá. */
 @media (max-width: 860px) {
   .pantalla-auth {
     grid-template-columns: 1fr;
     gap: 40px;
     padding: var(--margen-pantalla) 18px;
+  }
+
+  .pantalla-auth__tarjeta {
+    margin-inline: auto;
   }
 }
 
