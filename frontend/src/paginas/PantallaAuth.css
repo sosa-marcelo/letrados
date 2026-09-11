@@ -8,7 +8,13 @@
  * pone cada página (`background` inline o una clase propia); acá sólo va la
  * estructura y lo que no cambia entre pantallas.
  *
- * El responsive fino (breakpoints 860/480) es LET-28 — no está acá todavía.
+ * Responsive (LET-28): a ≤860px se pasa a una columna (el lema arriba, la
+ * tarjeta abajo, en el mismo orden del DOM) con margen lateral de 18px. A
+ * ≤479px el margen de pantalla es el de PlenoLoginMovil.dc.html (24/18/20).
+ * El corte es 480px, no 360: 360 es el ancho del teléfono dibujado en la
+ * maqueta, no el punto donde cambia el diseño — por eso la media query usa
+ * max-width:479px, para que el corte quede exactamente donde Lema/Tarjeta/
+ * Relleno ya cambian de mobile a desktop en min-width:480px.
  */
 
 .pantalla-auth {
@@ -198,4 +204,28 @@
   font-size: 12.5px;
   font-weight: 700;
   color: var(--verde);
+}
+
+/* ≤860px: una columna. La tarjeta ya es 100% de ancho por sí sola (Tarjeta
+   tiene max-width, no un ancho fijo), así que alcanza con apilar la grilla. */
+@media (max-width: 860px) {
+  .pantalla-auth {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: var(--margen-pantalla) 18px;
+  }
+}
+
+/* ≤479px: el margen de pantalla completo pasa a ser el de la maqueta móvil.
+   Lema y Tarjeta ya se ajustan solos en este mismo corte (min-width:480px
+   en sus propios .css); acá sólo lo que es propio del marco de la pantalla. */
+@media (max-width: 479px) {
+  .pantalla-auth {
+    gap: 18px;
+    padding: 24px 18px 20px;
+  }
+
+  .pantalla-auth__marca {
+    margin-bottom: 16px;
+  }
 }
