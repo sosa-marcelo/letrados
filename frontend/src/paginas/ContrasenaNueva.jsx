@@ -57,7 +57,7 @@ export default function ContrasenaNueva() {
       } else if (error.codigo === 'TOKEN_INVALIDO') {
         setErrorGeneral(
           <>
-            El enlace venció o ya se usó. <Link to="/recuperar">Pedí uno nuevo</Link>.
+            El enlace venció o ya se usó. <Link to="/recuperar" className="contrasena-nueva__enlace">Pedí uno nuevo</Link>.
           </>,
         )
       } else {
