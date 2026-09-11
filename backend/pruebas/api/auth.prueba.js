@@ -27,7 +27,7 @@ function tokenValido(sub = '42') {
 const REGISTRO_OK = {
   nombre: 'Ana Diaz',
   email: 'ana@ejemplo.com',
-  contrasena: 'unaclavelarga',
+  contrasena: 'unaclavelarga1',
 };
 
 beforeAll(() => prepararEntorno());
@@ -154,7 +154,7 @@ describe('POST /api/auth/recuperacion/confirmar', () => {
   it('datos validos -> 501 NO_IMPLEMENTADO (dominio LET-15)', async () => {
     const r = await request(app())
       .post('/api/auth/recuperacion/confirmar')
-      .send({ token: 'abc123', contrasena: 'unaclavelarga' });
+      .send({ token: 'abc123', contrasena: 'unaclavelarga1' });
 
     expect(r.status).toBe(501);
     expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
