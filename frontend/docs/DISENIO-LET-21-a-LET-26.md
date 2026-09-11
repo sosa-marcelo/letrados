@@ -214,7 +214,7 @@ resuelve el integrador).
 - [x] Pregunta al integrador (LET-26, contradicción de maquetas, botón Mostrar) — resuelta
 - [x] LET-21 — contexto de sesión
 - [x] LET-23 — login + `conMostrar` en `Campo`
-- [ ] LET-27 — home
+- [x] LET-27 — home
 - [ ] LET-24 — registro
 - [ ] LET-25 — recuperar / enlace enviado
 - [ ] LET-26 — contraseña nueva

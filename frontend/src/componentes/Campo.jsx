@@ -62,6 +62,7 @@ export default function Campo({
             className="campo__mini"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setMostrar((v) => !v)}
+            aria-label={mostrar ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
           >
             {mostrar ? 'Ocultar' : 'Mostrar'}
           </button>
