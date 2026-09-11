@@ -1,4 +1,4 @@
-# Letrados
+# Letrados v2
 
 Plataforma web de intercambio y donación de libros. Taller de Ingeniería de Software.
 
