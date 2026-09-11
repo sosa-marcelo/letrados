@@ -7,9 +7,8 @@ info:
     API del modulo de autenticacion de Letrados (ciclo 1).
 
     Contrato congelado en LET-18: rutas, validacion de entrada y forma de las
-    respuestas. La logica de negocio la completan las epicas de registro, inicio
-    y cierre de sesion, y recuperacion de contrasena. Mientras una epica no este
-    integrada, su ruta valida la entrada y despues responde 501 `NO_IMPLEMENTADO`.
+    respuestas. Las tres epicas de negocio —registro, inicio y cierre de sesion,
+    y recuperacion de contrasena— ya estan implementadas.
 
     Todas las respuestas son JSON. Los errores tienen siempre la misma forma:
 
@@ -19,6 +18,10 @@ info:
 
     El usuario que devuelve la API expone solo `id`, `nombre` y `email`; nunca
     el hash de la contrasena ni la fecha de creacion (RNF-08).
+
+    Cualquier ruta bajo `/api` que no exista responde 404 `RUTA_NO_ENCONTRADA`
+    con esa misma forma de error: el router de la API termina en un manejador
+    propio, asi que nunca devuelve el HTML de la aplicacion.
 
 servers:
   - url: /api
@@ -66,8 +69,6 @@ paths:
                   detalles: []
         '500':
           $ref: '#/components/responses/ErrorInterno'
-        '501':
-          $ref: '#/components/responses/NoImplementado'
 
   /auth/login:
     post:
@@ -107,8 +108,6 @@ paths:
                   detalles: []
         '500':
           $ref: '#/components/responses/ErrorInterno'
-        '501':
-          $ref: '#/components/responses/NoImplementado'
 
   /auth/yo:
     get:
@@ -146,8 +145,6 @@ paths:
                   detalles: []
         '500':
           $ref: '#/components/responses/ErrorInterno'
-        '501':
-          $ref: '#/components/responses/NoImplementado'
 
   /auth/recuperacion:
     post:
@@ -178,8 +175,6 @@ paths:
           $ref: '#/components/responses/EntradaInvalida'
         '500':
           $ref: '#/components/responses/ErrorInterno'
-        '501':
-          $ref: '#/components/responses/NoImplementado'
 
   /auth/recuperacion/confirmar:
     post:
@@ -236,8 +231,6 @@ paths:
                   $ref: '#/components/examples/JsonInvalido'
         '500':
           $ref: '#/components/responses/ErrorInterno'
-        '501':
-          $ref: '#/components/responses/NoImplementado'
 
 components:
   securitySchemes:
@@ -422,21 +415,6 @@ components:
             jsonInvalido:
               $ref: '#/components/examples/JsonInvalido'
 
-    NoImplementado:
-      description: |
-        La epica que implementa esta ruta todavia no esta integrada. El mensaje
-        dice cual falta. Desaparece cuando se completa la funcion
-        correspondiente en `domain/auth.js`.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error:
-              codigo: NO_IMPLEMENTADO
-              mensaje: El registro todavia no esta implementado (LET-12)
-              detalles: []
-
     ErrorInterno:
       description: Error inesperado del servidor. Nunca expone el detalle interno.
       content:
@@ -447,4 +425,18 @@ components:
             error:
               codigo: ERROR_INTERNO
               mensaje: Ocurrio un error inesperado. Volve a intentar en un momento.
+              detalles: []
+
+    RutaNoEncontrada:
+      description: |
+        La ruta pedida no existe bajo `/api`. La devuelve el terminador del
+        router de la API, antes de los archivos estaticos del frontend.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: RUTA_NO_ENCONTRADA
+              mensaje: No existe la ruta POST /api/auth/loquesea
               detalles: []
