@@ -1,19 +1,28 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import { noImplementado, emailDuplicado } from './errores.js';
+import { noImplementado, emailDuplicado, tokenInvalido } from './errores.js';
 import { hashear } from '../infra/hash.js';
 import { firmar } from '../infra/jwt.js';
 import { enviarCorreo } from '../infra/correo.js';
 import { obtenerConfig } from '../infra/config.js';
 import { registrador } from '../infra/registrador.js';
-import { insertarUsuario, buscarUsuarioPorEmail } from '../data/usuarios.js';
-import { insertarToken, invalidarTokensPendientesDeUsuario } from '../data/tokens.js';
+import {
+  insertarUsuario,
+  buscarUsuarioPorEmail,
+  actualizarContrasena,
+} from '../data/usuarios.js';
+import {
+  insertarToken,
+  buscarTokenVigentePorHash,
+  marcarTokenUsado,
+  invalidarTokensPendientesDeUsuario,
+} from '../data/tokens.js';
 
 /**
  * Reglas de negocio de autenticacion.
  *
  * LET-18 congelo el contrato: cada funcion existe con su firma definitiva.
- * LET-13 y LET-15 quedan pendientes y siguen lanzando `NO_IMPLEMENTADO` (501).
+ * LET-13 queda pendiente y sigue lanzando `NO_IMPLEMENTADO` (501).
  *
  * Ninguna funcion conoce HTTP: reciben datos planos y devuelven datos planos o
  * lanzan `ErrorDominio`.
@@ -161,13 +170,31 @@ export async function pedirRecuperacion({ email }, { ejecutar, enviar = enviarCo
 
 /**
  * Completa una recuperacion: valida el token de un solo uso y cambia la
- * contrasena. Token malo, vencido o usado -> `TOKEN_INVALIDO`.
- * Epica LET-15.
+ * contrasena. Token inexistente, vencido o ya usado dan el mismo error
+ * (`TOKEN_INVALIDO`), sin distinguir cual fue.
  *
- * @param {{ token: string, contrasena: string }} _datos
+ * El sellado del token (`marcarTokenUsado`) va ANTES de cambiar la
+ * contrasena. Al reves, dos peticiones simultaneas con el mismo enlace
+ * cambiarian la contrasena dos veces; sellando primero, si el cambio falla
+ * despues, el enlace queda quemado y la persona pide otro (peor para ella,
+ * pero seguro). `marcarTokenUsado` devuelve `null` si el token ya estaba
+ * usado: esa `null` es la proteccion contra dos peticiones a la vez.
+ *
+ * No inicia sesion ni devuelve nada: el frontend lleva al login.
+ *
+ * @param {{ token: string, contrasena: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
  * @returns {Promise<void>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function confirmarRecuperacion(_datos) {
-  throw noImplementado('La confirmacion de recuperacion todavia no esta implementada (LET-15)');
+export async function confirmarRecuperacion({ token, contrasena }, { ejecutar } = {}) {
+  const fila = await buscarTokenVigentePorHash(hashDeToken(token), ejecutar);
+  if (!fila) throw tokenInvalido();
+
+  // Sellar antes de cambiar nada: si dos peticiones llegan con el mismo
+  // enlace, solo una recibe la fila y la otra queda afuera.
+  const usado = await marcarTokenUsado(fila.id, ejecutar);
+  if (!usado) throw tokenInvalido();
+
+  await actualizarContrasena(fila.usuario_id, await hashear(contrasena), ejecutar);
+  await invalidarTokensPendientesDeUsuario(fila.usuario_id, ejecutar);
 }
