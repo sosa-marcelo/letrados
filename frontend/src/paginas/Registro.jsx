@@ -50,7 +50,7 @@ export default function Registro() {
           // ese espacio metido entre cada uno.
           email: (
             <span>
-              Ese correo ya tiene cuenta. <Link to="/login">Entrá</Link>.
+              Ese correo ya tiene cuenta. <Link to="/login" className="registro__enlace">Entrá</Link>.
             </span>
           ),
         })
