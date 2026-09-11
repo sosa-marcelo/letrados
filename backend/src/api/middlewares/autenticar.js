@@ -1,4 +1,4 @@
-import { ErrorDominio } from '../../domain/errores.js';
+import { sesionInvalida } from '../../domain/errores.js';
 import { verificar } from '../../infra/jwt.js';
 
 /**
@@ -30,14 +30,6 @@ export function autenticar(req, _res, next) {
   } catch {
     return next(sesionInvalida());
   }
-}
-
-function sesionInvalida() {
-  return new ErrorDominio(
-    'SESION_INVALIDA',
-    401,
-    'La sesion no es valida o expiro. Inicia sesion de nuevo.',
-  );
 }
 
 export default autenticar;
