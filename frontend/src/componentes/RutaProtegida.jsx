@@ -1,16 +1,17 @@
 import { Navigate } from 'react-router-dom'
 
-import { leerToken } from '../servicios/token.js'
+import { useSesion } from '../contexto/Sesion.jsx'
 
 /*
- * Deja pasar sólo si hay token de sesión guardado. Si no, manda a /login.
- *
- * Es una versión mínima para el andamio: la maneja de verdad (contexto de
- * sesión, refresco, expiración) la épica "Inicio y cierre de sesión".
+ * Deja pasar sólo si el contexto de sesión tiene un usuario. Mientras la
+ * sesión todavía se está resolviendo (cargando === true) no redirige ni
+ * muestra nada — evita un parpadeo a /login antes de saber si el token vale.
+ * Si termina de cargar y no hay usuario, manda a /login.
  */
 export default function RutaProtegida({ children }) {
-  if (!leerToken()) {
-    return <Navigate to="/login" replace />
-  }
+  const { usuario, cargando } = useSesion()
+
+  if (cargando) return <div aria-hidden="true" />
+  if (!usuario) return <Navigate to="/login" replace />
   return children
 }

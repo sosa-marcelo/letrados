@@ -3,11 +3,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
 import { crearApp } from '../../src/app.js';
-import {
-  prepararEntorno,
-  limpiarEntorno,
-  JWT_SECRETO_PRUEBA,
-} from '../apoyo/entorno.js';
+import { prepararEntorno, limpiarEntorno } from '../apoyo/entorno.js';
 
 /**
  * LET-18 congela el contrato de las 5 rutas de auth. Estas pruebas fijan:
@@ -15,14 +11,15 @@ import {
  *  - que donde falta el dominio responde 501 NO_IMPLEMENTADO,
  *  - la forma de la respuesta,
  *  - que /api/auth/yo pide sesion (401 SESION_INVALIDA).
+ *
+ * El login y /auth/yo con dominio implementado (LET-13) ya no responden 501:
+ * esos casos los cubren pruebas/domain/auth.prueba.js (la logica) y
+ * pruebas/api/middlewares/autenticar.prueba.js (que el middleware deja pasar
+ * un token valido). Probarlos aca terminaria en 500 contra la base falsa del
+ * entorno de pruebas.
  */
 
 const app = () => crearApp();
-
-/** Firma un token valido para las pruebas de sesion. */
-function tokenValido(sub = '42') {
-  return jwt.sign({ sub }, JWT_SECRETO_PRUEBA, { algorithm: 'HS256' });
-}
 
 beforeAll(() => prepararEntorno());
 afterAll(() => limpiarEntorno());
@@ -59,15 +56,6 @@ describe('POST /api/auth/login', () => {
     expect(r.status).toBe(400);
     expect(r.body.error.codigo).toBe('DATOS_INVALIDOS');
   });
-
-  it('datos validos -> 501 NO_IMPLEMENTADO (dominio LET-13)', async () => {
-    const r = await request(app())
-      .post('/api/auth/login')
-      .send({ email: 'ana@ejemplo.com', contrasena: 'unaclavelarga' });
-
-    expect(r.status).toBe(501);
-    expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
-  });
 });
 
 describe('GET /api/auth/yo', () => {
@@ -94,15 +82,6 @@ describe('GET /api/auth/yo', () => {
       .set('Authorization', `Bearer ${ajeno}`);
 
     expect(r.status).toBe(401);
-  });
-
-  it('con un Bearer valido -> pasa la sesion y llega al dominio (501)', async () => {
-    const r = await request(app())
-      .get('/api/auth/yo')
-      .set('Authorization', `Bearer ${tokenValido()}`);
-
-    expect(r.status).toBe(501);
-    expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
   });
 });
 
