@@ -1,7 +1,12 @@
 /*
  * Home — pleno verde. Barra superior con la marca y la sesión, centro a dos
  * columnas con el saludo y la tarjeta "Lo que viene". Valores de
- * PlenoHome.dc.html. El responsive fino es LET-28.
+ * PlenoHome.dc.html.
+ *
+ * Responsive (LET-28): a ≤860px el centro pasa a una columna (el saludo
+ * arriba, la tarjeta abajo) con margen lateral de 18px, igual que las
+ * pantallas de auth. A ≤479px los tamaños son los de PlenoHomeMovil.dc.html.
+ * El corte es 480px, no 360 (ver PantallaAuth.css).
  */
 
 .home {
@@ -222,4 +227,72 @@
   background: var(--naranja);
   border-color: var(--tinta);
   color: var(--tinta);
+}
+
+/* ≤860px: el centro pasa a una columna (el saludo arriba, la tarjeta abajo,
+   en el orden del DOM) y el margen lateral baja a 18px en toda la pantalla. */
+@media (max-width: 860px) {
+  .home__barra {
+    padding: 22px 18px;
+  }
+
+  .home__centro {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 32px 18px;
+    align-items: start;
+  }
+}
+
+/* ≤479px: valores de PlenoHomeMovil.dc.html. El nombre se oculta en la barra
+   —queda sólo el avatar— para que el botón de cerrar sesión no desborde: a
+   este ancho no entran marca + avatar + nombre + botón en una sola fila. */
+@media (max-width: 479px) {
+  .home__barra {
+    padding: 16px 18px;
+  }
+
+  .home__marca {
+    gap: 8px;
+    font-size: 17px;
+  }
+
+  .home__nombre {
+    display: none;
+  }
+
+  .home__centro {
+    gap: 24px;
+    padding: 24px 18px 20px;
+  }
+
+  .home__etiqueta {
+    padding: 4px 12px;
+    font-size: 11.5px;
+    margin-bottom: 16px;
+  }
+
+  .home__titulo {
+    font-size: 36px;
+    line-height: 0.98;
+    letter-spacing: -0.038em;
+  }
+
+  .home__cuerpo {
+    font-size: 15px;
+  }
+
+  .home__tarjeta {
+    box-shadow: var(--sombra-dura-movil);
+    padding: 20px 18px;
+  }
+
+  .home__tarjeta h2 {
+    font-size: 16px;
+  }
+
+  .home__tarjeta p {
+    font-size: 12.5px;
+    margin-bottom: 14px;
+  }
 }
