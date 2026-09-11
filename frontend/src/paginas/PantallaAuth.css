@@ -1,0 +1,241 @@
+/*
+ * Layout compartido por las pantallas del módulo de auth con formulario
+ * (Entrar, Crear cuenta, Recuperar / Enlace enviado, Contraseña nueva): el
+ * color pleno ocupa toda la pantalla, con orbes decorativos de fondo, el
+ * lema a la izquierda y la Tarjeta del formulario a la derecha.
+ *
+ * Valores tomados de las maquetas Pleno*.dc.html. El color pleno de fondo lo
+ * pone cada página (`background` inline o una clase propia); acá sólo va la
+ * estructura y lo que no cambia entre pantallas.
+ *
+ * Responsive (LET-28): a ≤860px se pasa a una columna (el lema arriba, la
+ * tarjeta abajo, en el mismo orden del DOM) con margen lateral de 18px. A
+ * ≤479px el margen de pantalla es el de PlenoLoginMovil.dc.html (24/18/20).
+ * El corte es 480px, no 360: 360 es el ancho del teléfono dibujado en la
+ * maqueta, no el punto donde cambia el diseño — por eso la media query usa
+ * max-width:479px, para que el corte quede exactamente donde Lema/Tarjeta/
+ * Relleno ya cambian de mobile a desktop en min-width:480px.
+ */
+
+.pantalla-auth {
+  min-height: 100%;
+  color: var(--crema);
+  padding: var(--margen-pantalla);
+  display: grid;
+  grid-template-columns: 1fr var(--ancho-tarjeta);
+  gap: 52px;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.pantalla-auth__orbes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pantalla-auth__orbe {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 248, 236, 0.11);
+}
+
+.pantalla-auth__orbe--a {
+  width: 560px;
+  height: 560px;
+  left: -190px;
+  top: -150px;
+}
+
+.pantalla-auth__orbe--b {
+  width: 380px;
+  height: 380px;
+  left: -100px;
+  top: -60px;
+  border-color: rgba(244, 99, 42, 0.32);
+}
+
+.pantalla-auth__orbe--c {
+  width: 700px;
+  height: 700px;
+  right: -330px;
+  bottom: -300px;
+}
+
+.pantalla-auth__izq {
+  position: relative;
+  z-index: 1;
+}
+
+.pantalla-auth__marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0 0 34px;
+}
+
+.pantalla-auth__izq .lema {
+  margin: 0 0 18px;
+}
+
+.pantalla-auth__sub {
+  margin: 0;
+  font-size: 15.5px;
+  color: rgba(255, 248, 236, 0.68);
+  max-width: 30ch;
+}
+
+.pantalla-auth__tarjeta {
+  position: relative;
+  z-index: 1;
+}
+
+.pantalla-auth__alerta {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: #f9e4df;
+  border-left: 4px solid var(--rojo);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--rojo);
+  font-weight: 600;
+}
+
+.pantalla-auth__alerta svg {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.pantalla-auth__volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gris);
+}
+
+.pantalla-auth__volver:hover {
+  color: var(--tinta);
+}
+
+.pantalla-auth__texto {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+  color: var(--gris);
+}
+
+.pantalla-auth__texto b {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.pantalla-auth__pie {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 2px dashed var(--linea);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--gris);
+}
+
+.pantalla-auth__pie a,
+.pantalla-auth__texto a {
+  color: var(--tinta);
+  text-decoration: none;
+  border-bottom: 2px solid var(--complementario, var(--naranja));
+  font-weight: 600;
+}
+
+.pantalla-auth__pie a:hover,
+.pantalla-auth__texto a:hover {
+  background: var(--complementario, var(--naranja));
+}
+
+/* Requisitos en vivo de contraseña (Crear cuenta y Contraseña nueva). */
+.pantalla-auth__requisitos {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pantalla-auth__requisitos li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--hundido);
+  border-radius: 999px;
+  padding: 4px 11px 4px 8px;
+  color: var(--gris);
+}
+
+.pantalla-auth__requisitos li.es-cumplido {
+  background: rgba(14, 77, 60, 0.12);
+  color: var(--verde);
+}
+
+.pantalla-auth__ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--verde);
+}
+
+/* ≤860px: una columna. Tarjeta tiene max-width (424px, el ancho de tarjeta
+   del sistema), no un ancho fijo: con la grilla en 1fr el ítem se estira a
+   todo el ancho de la fila y el max-width lo frena en 424px, pero queda
+   pegado al borde izquierdo (el estirado por defecto de un grid item no se
+   deshace solo al toparse con el máximo). margin-inline:auto reparte lo que
+   sobra a los dos lados y la centra. No se toca el max-width: a ≤479px la
+   pantalla ya angosta más que 424px y ahí sí ocupa el 100%, sin necesidad de
+   ningún cambio acá. */
+@media (max-width: 860px) {
+  .pantalla-auth {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: var(--margen-pantalla) 18px;
+  }
+
+  .pantalla-auth__tarjeta {
+    margin-inline: auto;
+  }
+}
+
+/* ≤479px: el margen de pantalla completo pasa a ser el de la maqueta móvil.
+   Lema y Tarjeta ya se ajustan solos en este mismo corte (min-width:480px
+   en sus propios .css); acá sólo lo que es propio del marco de la pantalla. */
+@media (max-width: 479px) {
+  .pantalla-auth {
+    gap: 18px;
+    padding: 24px 18px 20px;
+  }
+
+  .pantalla-auth__marca {
+    margin-bottom: 16px;
+  }
+}

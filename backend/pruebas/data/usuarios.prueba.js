@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
   insertarUsuario,
+  buscarUsuarioPorId,
   buscarUsuarioPorEmail,
 } from '../../src/data/usuarios.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
@@ -54,6 +55,28 @@ describe('insertarUsuario', () => {
         ejecutar,
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe('buscarUsuarioPorId', () => {
+  it('encuentra la fila sin contrasena_hash', async () => {
+    const sembrado = await sembrarUsuario(ejecutar, {
+      nombre: 'Beto',
+      email: 'beto@ejemplo.com',
+      contrasena_hash: 'hash-secreto',
+    });
+
+    const fila = await buscarUsuarioPorId(sembrado.id, ejecutar);
+
+    expect(fila).not.toBeNull();
+    expect(fila.id).toBe(sembrado.id);
+    expect(fila.nombre).toBe('Beto');
+    expect(fila.email).toBe('beto@ejemplo.com');
+    expect(fila).not.toHaveProperty('contrasena_hash');
+  });
+
+  it('devuelve null para un id inexistente', async () => {
+    expect(await buscarUsuarioPorId(999999, ejecutar)).toBeNull();
   });
 });
 

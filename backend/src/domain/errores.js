@@ -61,3 +61,43 @@ export function jsonInvalido(
 ) {
   return new ErrorDominio('JSON_INVALIDO', 400, mensaje);
 }
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 409 EMAIL_DUPLICADO
+ */
+export function emailDuplicado(
+  mensaje = 'Ya existe una cuenta con ese correo',
+) {
+  return new ErrorDominio('EMAIL_DUPLICADO', 409, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 400 TOKEN_INVALIDO
+ */
+export function tokenInvalido(
+  mensaje = 'El enlace no es valido o ya vencio',
+) {
+  return new ErrorDominio('TOKEN_INVALIDO', 400, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 CREDENCIALES_INVALIDAS
+ */
+export function credencialesInvalidas(
+  mensaje = 'El correo o la contrasena no son correctos',
+) {
+  return new ErrorDominio('CREDENCIALES_INVALIDAS', 401, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 SESION_INVALIDA
+ */
+export function sesionInvalida(
+  mensaje = 'La sesion no es valida o expiro. Inicia sesion de nuevo.',
+) {
+  return new ErrorDominio('SESION_INVALIDA', 401, mensaje);
+}

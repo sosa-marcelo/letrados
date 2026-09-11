@@ -38,6 +38,24 @@ export async function insertarUsuario(
 }
 
 /**
+ * Busca un usuario por su id. Sin `contrasena_hash`: la usan lugares que ya
+ * confian en la sesion (p. ej. `GET /api/auth/yo`) y no necesitan el hash.
+ *
+ * @param {string | number} id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<Omit<FilaUsuario, 'contrasena_hash'> | null>}
+ */
+export async function buscarUsuarioPorId(id, ejecutar = consultar) {
+  const { rows } = await ejecutar(
+    `SELECT id, nombre, email, creado_en
+       FROM usuarios
+      WHERE id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Busca un usuario por su correo. Devuelve la fila completa, con
  * `contrasena_hash` incluido, porque `domain` la necesita para verificar el
  * login.
@@ -55,6 +73,26 @@ export async function buscarUsuarioPorEmail(email, ejecutar = consultar) {
        FROM usuarios
       WHERE email = $1`,
     [email],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Actualiza la contrasena de un usuario. Sin el hash: `domain` ya la hasheo
+ * antes de llamar aca.
+ *
+ * @param {string | number} id
+ * @param {string} contrasena_hash
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<{ id: string, nombre: string, email: string } | null>}
+ */
+export async function actualizarContrasena(id, contrasena_hash, ejecutar = consultar) {
+  const { rows } = await ejecutar(
+    `UPDATE usuarios
+        SET contrasena_hash = $2
+      WHERE id = $1
+      RETURNING id, nombre, email`,
+    [id, contrasena_hash],
   );
   return rows[0] ?? null;
 }

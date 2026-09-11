@@ -1,0 +1,442 @@
+openapi: 3.1.0
+
+info:
+  title: Letrados API
+  version: 1.0.0
+  description: |
+    API del modulo de autenticacion de Letrados (ciclo 1).
+
+    Contrato congelado en LET-18: rutas, validacion de entrada y forma de las
+    respuestas. Las tres epicas de negocio —registro, inicio y cierre de sesion,
+    y recuperacion de contrasena— ya estan implementadas.
+
+    Todas las respuestas son JSON. Los errores tienen siempre la misma forma:
+
+    ```json
+    { "error": { "codigo": "DATOS_INVALIDOS", "mensaje": "...", "detalles": [] } }
+    ```
+
+    El usuario que devuelve la API expone solo `id`, `nombre` y `email`; nunca
+    el hash de la contrasena ni la fecha de creacion (RNF-08).
+
+    Cualquier ruta bajo `/api` que no exista responde 404 `RUTA_NO_ENCONTRADA`
+    con esa misma forma de error: el router de la API termina en un manejador
+    propio, asi que nunca devuelve el HTML de la aplicacion.
+
+servers:
+  - url: /api
+    description: Mismo origen que el frontend
+
+tags:
+  - name: Autenticacion
+    description: Registro, sesion y recuperacion de contrasena
+
+paths:
+  /auth/registro:
+    post:
+      tags: [Autenticacion]
+      operationId: registrar
+      security: []
+      summary: Crear una cuenta
+      description: |
+        Registra un usuario nuevo y devuelve su sesion ya iniciada.
+        El correo se compara sin distinguir mayusculas de minusculas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoRegistro'
+      responses:
+        '201':
+          description: Cuenta creada. Devuelve el token de sesion y el usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sesion'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '409':
+          description: Ya existe una cuenta con ese correo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  codigo: EMAIL_DUPLICADO
+                  mensaje: Ya existe una cuenta con ese correo
+                  detalles: []
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+
+  /auth/login:
+    post:
+      tags: [Autenticacion]
+      operationId: iniciarSesion
+      security: []
+      summary: Iniciar sesion
+      description: |
+        Valida las credenciales y devuelve una sesion. Ante cualquier fallo
+        responde el mismo error, sin distinguir si fallo el correo o la
+        contrasena.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoLogin'
+      responses:
+        '200':
+          description: Credenciales correctas. Devuelve el token de sesion y el usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sesion'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          description: Correo o contrasena incorrectos. El mensaje es siempre el mismo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  codigo: CREDENCIALES_INVALIDAS
+                  mensaje: El correo o la contrasena no son correctos
+                  detalles: []
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+
+  /auth/yo:
+    get:
+      tags: [Autenticacion]
+      operationId: usuarioActual
+      summary: Datos del usuario de la sesion actual
+      description: |
+        Devuelve los datos publicos del usuario dueno del token. El cierre de
+        sesion es del lado del cliente (borra el token); no hay ruta de logout.
+      security:
+        - sesion: []
+      responses:
+        '200':
+          description: Sesion valida.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  usuario:
+                    $ref: '#/components/schemas/UsuarioPublico'
+        '401':
+          description: |
+            Falta la cabecera, el esquema no es Bearer, la firma no es valida o
+            el token vencio. No se dice cual de los casos fue.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  codigo: SESION_INVALIDA
+                  mensaje: La sesion no es valida o expiro. Inicia sesion de nuevo.
+                  detalles: []
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+
+  /auth/recuperacion:
+    post:
+      tags: [Autenticacion]
+      operationId: pedirRecuperacion
+      security: []
+      summary: Pedir un enlace de recuperacion de contrasena
+      description: |
+        Si el correo pertenece a una cuenta, envia un enlace de recuperacion.
+        La respuesta es siempre la misma, exista o no la cuenta, para no revelar
+        que correos estan registrados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoRecuperacion'
+      responses:
+        '200':
+          description: Pedido recibido. Mismo cuerpo exista o no la cuenta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mensaje'
+              example:
+                mensaje: Si el correo esta registrado, te enviamos un enlace para recuperar la contrasena.
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+
+  /auth/recuperacion/confirmar:
+    post:
+      tags: [Autenticacion]
+      operationId: confirmarRecuperacion
+      security: []
+      summary: Poner una contrasena nueva con el token del enlace
+      description: |
+        Valida el token de un solo uso que llego por correo y cambia la
+        contrasena.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoConfirmacion'
+      responses:
+        '200':
+          description: Contrasena actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mensaje'
+              example:
+                mensaje: Tu contrasena fue actualizada. Ya podes iniciar sesion.
+        '400':
+          description: |
+            Entrada invalida (`DATOS_INVALIDOS`, `JSON_INVALIDO`) o token malo,
+            vencido o ya usado (`TOKEN_INVALIDO`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                tokenInvalido:
+                  summary: Token malo, vencido o ya usado
+                  value:
+                    error:
+                      codigo: TOKEN_INVALIDO
+                      mensaje: El enlace no es valido o ya vencio
+                      detalles: []
+                datosInvalidos:
+                  summary: Faltan campos o no cumplen las reglas
+                  value:
+                    error:
+                      codigo: DATOS_INVALIDOS
+                      mensaje: Los datos enviados no son validos
+                      detalles:
+                        - campo: token
+                          mensaje: El token es obligatorio
+                        - campo: contrasena
+                          mensaje: La contrasena debe tener al menos 8 caracteres
+                jsonInvalido:
+                  $ref: '#/components/examples/JsonInvalido'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+
+components:
+  securitySchemes:
+    sesion:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token que devuelven registro e inicio de sesion, en la cabecera
+        `Authorization: Bearer <token>`. JWT HS256 con el id del usuario en `sub`.
+
+  schemas:
+    UsuarioPublico:
+      type: object
+      description: Unicos datos del usuario que salen por la API (RNF-08).
+      required: [id, nombre, email]
+      properties:
+        id:
+          type: string
+          description: Identificador numerico del usuario, serializado como texto.
+          example: '1'
+        nombre:
+          type: string
+          maxLength: 80
+          example: Ana Gomez
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana@example.com
+      additionalProperties: false
+
+    Sesion:
+      type: object
+      required: [token, usuario]
+      properties:
+        token:
+          type: string
+          description: JWT de sesion. Su duracion la fija `JWT_VENCIMIENTO` (por defecto 24 h).
+        usuario:
+          $ref: '#/components/schemas/UsuarioPublico'
+
+    Mensaje:
+      type: object
+      required: [mensaje]
+      properties:
+        mensaje:
+          type: string
+
+    PedidoRegistro:
+      type: object
+      required: [nombre, email, contrasena]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Se recortan los espacios de los bordes antes de validar.
+          example: Ana Gomez
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana@example.com
+        contrasena:
+          type: string
+          format: password
+          minLength: 8
+          example: una-clave-larga
+
+    PedidoLogin:
+      type: object
+      required: [email, contrasena]
+      properties:
+        email:
+          type: string
+          minLength: 1
+          example: ana@example.com
+        contrasena:
+          type: string
+          format: password
+          minLength: 1
+          example: una-clave-larga
+
+    PedidoRecuperacion:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: ana@example.com
+
+    PedidoConfirmacion:
+      type: object
+      required: [token, contrasena]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          description: Token de un solo uso que llega en el enlace del correo.
+        contrasena:
+          type: string
+          format: password
+          minLength: 8
+          example: otra-clave-larga
+
+    Error:
+      type: object
+      description: Forma unica de todos los errores de la API.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [codigo, mensaje, detalles]
+          properties:
+            codigo:
+              type: string
+              description: Identificador estable del error, en mayusculas.
+              enum:
+                - DATOS_INVALIDOS
+                - JSON_INVALIDO
+                - EMAIL_DUPLICADO
+                - CREDENCIALES_INVALIDAS
+                - SESION_INVALIDA
+                - TOKEN_INVALIDO
+                - RUTA_NO_ENCONTRADA
+                - NO_IMPLEMENTADO
+                - ERROR_INTERNO
+            mensaje:
+              type: string
+              description: Texto para el usuario final. Nunca lleva datos internos.
+            detalles:
+              type: array
+              description: Errores puntuales por campo. Vacio cuando no aplica.
+              items:
+                $ref: '#/components/schemas/DetalleError'
+
+    DetalleError:
+      type: object
+      required: [mensaje]
+      properties:
+        campo:
+          type: string
+          example: email
+        mensaje:
+          type: string
+          example: El correo no tiene un formato valido
+
+  examples:
+    JsonInvalido:
+      summary: El cuerpo no se pudo leer como JSON
+      value:
+        error:
+          codigo: JSON_INVALIDO
+          mensaje: El cuerpo de la peticion no es JSON valido
+          detalles: []
+
+  responses:
+    EntradaInvalida:
+      description: |
+        La entrada no cumple las reglas (`DATOS_INVALIDOS`, con un detalle por
+        cada campo que fallo) o el cuerpo no es JSON valido (`JSON_INVALIDO`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            datosInvalidos:
+              summary: Uno o mas campos no cumplen las reglas
+              value:
+                error:
+                  codigo: DATOS_INVALIDOS
+                  mensaje: Los datos enviados no son validos
+                  detalles:
+                    - campo: nombre
+                      mensaje: El nombre es obligatorio
+                    - campo: email
+                      mensaje: El correo no tiene un formato valido
+                    - campo: contrasena
+                      mensaje: La contrasena debe tener al menos 8 caracteres
+            jsonInvalido:
+              $ref: '#/components/examples/JsonInvalido'
+
+    ErrorInterno:
+      description: Error inesperado del servidor. Nunca expone el detalle interno.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: ERROR_INTERNO
+              mensaje: Ocurrio un error inesperado. Volve a intentar en un momento.
+              detalles: []
+
+    RutaNoEncontrada:
+      description: |
+        La ruta pedida no existe bajo `/api`. La devuelve el terminador del
+        router de la API, antes de los archivos estaticos del frontend.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: RUTA_NO_ENCONTRADA
+              mensaje: No existe la ruta POST /api/auth/loquesea
+              detalles: []

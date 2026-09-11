@@ -1,0 +1,30 @@
+/*
+ * Ajustes propios de Contraseña nueva sobre el layout compartido
+ * (PantallaAuth.css, congelado — no se toca acá). Valores de PlenoNueva.dc.html.
+ */
+
+.contrasena-nueva__grupo-clave .campo,
+.contrasena-nueva__grupo-repetir .campo {
+  margin-bottom: 0;
+}
+
+.contrasena-nueva__requisitos {
+  margin-top: 9px;
+  margin-bottom: 16px;
+}
+
+.contrasena-nueva__grupo-repetir {
+  margin-bottom: 18px;
+}
+
+/* Enlace dentro de un error de campo: mismo estilo que los enlaces de la tarjeta. */
+.contrasena-nueva__enlace {
+  color: var(--tinta);
+  text-decoration: none;
+  border-bottom: 2px solid var(--complementario, var(--verde));
+  font-weight: 600;
+}
+
+.contrasena-nueva__enlace:hover {
+  background: var(--complementario, var(--verde));
+}
