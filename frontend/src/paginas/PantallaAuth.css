@@ -1,0 +1,201 @@
+/*
+ * Layout compartido por las pantallas del módulo de auth con formulario
+ * (Entrar, Crear cuenta, Recuperar / Enlace enviado, Contraseña nueva): el
+ * color pleno ocupa toda la pantalla, con orbes decorativos de fondo, el
+ * lema a la izquierda y la Tarjeta del formulario a la derecha.
+ *
+ * Valores tomados de las maquetas Pleno*.dc.html. El color pleno de fondo lo
+ * pone cada página (`background` inline o una clase propia); acá sólo va la
+ * estructura y lo que no cambia entre pantallas.
+ *
+ * El responsive fino (breakpoints 860/480) es LET-28 — no está acá todavía.
+ */
+
+.pantalla-auth {
+  min-height: 100%;
+  color: var(--crema);
+  padding: var(--margen-pantalla);
+  display: grid;
+  grid-template-columns: 1fr var(--ancho-tarjeta);
+  gap: 52px;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.pantalla-auth__orbes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pantalla-auth__orbe {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 248, 236, 0.11);
+}
+
+.pantalla-auth__orbe--a {
+  width: 560px;
+  height: 560px;
+  left: -190px;
+  top: -150px;
+}
+
+.pantalla-auth__orbe--b {
+  width: 380px;
+  height: 380px;
+  left: -100px;
+  top: -60px;
+  border-color: rgba(244, 99, 42, 0.32);
+}
+
+.pantalla-auth__orbe--c {
+  width: 700px;
+  height: 700px;
+  right: -330px;
+  bottom: -300px;
+}
+
+.pantalla-auth__izq {
+  position: relative;
+  z-index: 1;
+}
+
+.pantalla-auth__marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0 0 34px;
+}
+
+.pantalla-auth__izq .lema {
+  margin: 0 0 18px;
+}
+
+.pantalla-auth__sub {
+  margin: 0;
+  font-size: 15.5px;
+  color: rgba(255, 248, 236, 0.68);
+  max-width: 30ch;
+}
+
+.pantalla-auth__tarjeta {
+  position: relative;
+  z-index: 1;
+}
+
+.pantalla-auth__alerta {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: #f9e4df;
+  border-left: 4px solid var(--rojo);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--rojo);
+  font-weight: 600;
+}
+
+.pantalla-auth__alerta svg {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.pantalla-auth__volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gris);
+}
+
+.pantalla-auth__volver:hover {
+  color: var(--tinta);
+}
+
+.pantalla-auth__texto {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+  color: var(--gris);
+}
+
+.pantalla-auth__texto b {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.pantalla-auth__pie {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 2px dashed var(--linea);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--gris);
+}
+
+.pantalla-auth__pie a,
+.pantalla-auth__texto a {
+  color: var(--tinta);
+  text-decoration: none;
+  border-bottom: 2px solid var(--complementario, var(--naranja));
+  font-weight: 600;
+}
+
+.pantalla-auth__pie a:hover,
+.pantalla-auth__texto a:hover {
+  background: var(--complementario, var(--naranja));
+}
+
+/* Requisitos en vivo de contraseña (Crear cuenta y Contraseña nueva). */
+.pantalla-auth__requisitos {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pantalla-auth__requisitos li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--hundido);
+  border-radius: 999px;
+  padding: 4px 11px 4px 8px;
+  color: var(--gris);
+}
+
+.pantalla-auth__requisitos li.es-cumplido {
+  background: rgba(14, 77, 60, 0.12);
+  color: var(--verde);
+}
+
+.pantalla-auth__ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--verde);
+}
