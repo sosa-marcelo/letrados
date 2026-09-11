@@ -108,6 +108,7 @@ export default function ContrasenaNueva() {
               alCambiar={(e) => setContrasena(e.target.value)}
               error={erroresCampo.contrasena}
               pleno={PLENO}
+              conMostrar
               autoComplete="new-password"
               required
             />
