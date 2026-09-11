@@ -1,12 +1,10 @@
-import jwt from 'jsonwebtoken';
-
 import { ErrorDominio } from '../../domain/errores.js';
-import { obtenerConfig } from '../../infra/config.js';
+import { verificar } from '../../infra/jwt.js';
 
 /**
- * Middleware de sesion. Lee `Authorization: Bearer <token>`, verifica el JWT
- * (HS256, firmado con `JWT_SECRETO`) y deja `req.usuario = { id }` con el `sub`
- * del token.
+ * Middleware de sesion. Lee `Authorization: Bearer <token>` y delega en
+ * `infra/jwt.verificar` (mismo lugar que firma el token en `infra/jwt.firmar`),
+ * que devuelve `{ id }`. Deja `req.usuario = { id }`.
  *
  * Cualquier problema —header ausente, esquema distinto de Bearer, firma
  * invalida, token vencido— sale como 401 `SESION_INVALIDA`, sin decir cual de
@@ -26,10 +24,8 @@ export function autenticar(req, _res, next) {
   }
 
   try {
-    const carga = jwt.verify(token, obtenerConfig().jwtSecreto, {
-      algorithms: ['HS256'],
-    });
-    req.usuario = { id: String(carga.sub) };
+    const { id } = verificar(token);
+    req.usuario = { id };
     return next();
   } catch {
     return next(sesionInvalida());
