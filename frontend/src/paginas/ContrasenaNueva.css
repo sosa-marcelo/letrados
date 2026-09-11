@@ -1,0 +1,18 @@
+/*
+ * Ajustes propios de Contraseña nueva sobre el layout compartido
+ * (PantallaAuth.css, congelado — no se toca acá). Valores de PlenoNueva.dc.html.
+ */
+
+.contrasena-nueva__grupo-clave .campo,
+.contrasena-nueva__grupo-repetir .campo {
+  margin-bottom: 0;
+}
+
+.contrasena-nueva__requisitos {
+  margin-top: 9px;
+  margin-bottom: 16px;
+}
+
+.contrasena-nueva__grupo-repetir {
+  margin-bottom: 18px;
+}
