@@ -1,0 +1,225 @@
+/*
+ * Home — pleno verde. Barra superior con la marca y la sesión, centro a dos
+ * columnas con el saludo y la tarjeta "Lo que viene". Valores de
+ * PlenoHome.dc.html. El responsive fino es LET-28.
+ */
+
+.home {
+  min-height: 100%;
+  background: var(--verde);
+  color: var(--crema);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.home__orbes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home__orbe {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 248, 236, 0.12);
+}
+
+.home__orbe--a {
+  width: 620px;
+  height: 620px;
+  left: -230px;
+  bottom: -260px;
+}
+
+.home__orbe--b {
+  width: 420px;
+  height: 420px;
+  left: -140px;
+  bottom: -160px;
+  border-color: rgba(244, 99, 42, 0.28);
+}
+
+.home__orbe--c {
+  width: 700px;
+  height: 700px;
+  right: -340px;
+  top: -280px;
+}
+
+.home__barra {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px var(--margen-pantalla);
+  border-bottom: 2px solid rgba(255, 248, 236, 0.18);
+}
+
+.home__marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+}
+
+.home__sesion {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.home__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--naranja);
+  color: var(--tinta);
+  border: var(--borde);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.home__nombre {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.home__salir {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 2px solid rgba(255, 248, 236, 0.4);
+  border-radius: var(--radio-boton);
+  padding: 8px 15px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--crema);
+  cursor: pointer;
+}
+
+.home__salir:hover {
+  background: var(--crema);
+  color: var(--verde);
+  border-color: var(--crema);
+}
+
+.home__salir:focus-visible {
+  outline: 3px solid var(--naranja);
+  outline-offset: 2px;
+}
+
+.home__centro {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 372px;
+  gap: 52px;
+  padding: 0 var(--margen-pantalla);
+  align-items: center;
+}
+
+.home__etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--naranja);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: var(--radio-boton);
+  padding: 5px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.home__titulo {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: var(--texto-home);
+  line-height: var(--interlinea-home);
+  letter-spacing: -0.04em;
+  margin: 0 0 16px;
+  max-width: 12ch;
+}
+
+.home__cuerpo {
+  color: rgba(255, 248, 236, 0.75);
+  font-size: 16.5px;
+  margin: 0;
+  max-width: 40ch;
+}
+
+.home__tarjeta {
+  background: var(--crema);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-dura);
+  padding: 24px 26px;
+}
+
+.home__tarjeta h2 {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 18px;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+
+.home__tarjeta p {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+
+.home__paso {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+
+.home__paso + .home__paso {
+  border-top: 1px solid rgba(20, 20, 20, 0.12);
+}
+
+.home__n {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(20, 20, 20, 0.2);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gris);
+}
+
+.home__paso--ahora {
+  font-weight: 700;
+  color: var(--tinta);
+}
+
+.home__paso--ahora .home__n {
+  background: var(--naranja);
+  border-color: var(--tinta);
+  color: var(--tinta);
+}

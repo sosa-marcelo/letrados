@@ -5,9 +5,12 @@ import { RouterProvider } from 'react-router-dom'
 import './estilos/tokens.css'
 import './estilos/base.css'
 import { enrutador } from './App.jsx'
+import { ProveedorSesion } from './contexto/Sesion.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={enrutador} />
+    <ProveedorSesion>
+      <RouterProvider router={enrutador} />
+    </ProveedorSesion>
   </StrictMode>,
 )

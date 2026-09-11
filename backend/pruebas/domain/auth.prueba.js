@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto';
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 
-import { registrar, pedirRecuperacion, confirmarRecuperacion } from '../../src/domain/auth.js';
+import {
+  registrar,
+  iniciarSesion,
+  usuarioActual,
+  pedirRecuperacion,
+  confirmarRecuperacion,
+} from '../../src/domain/auth.js';
 import { verificar as verificarToken } from '../../src/infra/jwt.js';
 import { verificar as verificarContrasena } from '../../src/infra/hash.js';
 import { obtenerConfig } from '../../src/infra/config.js';
@@ -310,5 +316,94 @@ describe('confirmarRecuperacion', () => {
 
     const filaOtro = (await filasDeTokens()).find((f) => f.token_hash === otroTokenHash);
     expect(filaOtro.usado_en).not.toBeNull();
+  });
+});
+
+describe('iniciarSesion', () => {
+  it('login correcto -> token y usuario con exactamente id, nombre y email', async () => {
+    await registrar(DATOS, { ejecutar });
+
+    const { token, usuario } = await iniciarSesion(
+      { email: DATOS.email, contrasena: DATOS.contrasena },
+      { ejecutar },
+    );
+
+    expect(Object.keys(usuario).sort()).toEqual(['email', 'id', 'nombre']);
+    expect(verificarToken(token)).toEqual({ id: usuario.id });
+  });
+
+  it('correo con otras mayusculas y espacios alrededor -> entra igual', async () => {
+    await registrar(DATOS, { ejecutar });
+
+    const { usuario } = await iniciarSesion(
+      { email: `  ${DATOS.email.toUpperCase()}  `, contrasena: DATOS.contrasena },
+      { ejecutar },
+    );
+
+    expect(usuario.email).toBe(DATOS.email);
+  });
+
+  it('contrasena incorrecta -> CREDENCIALES_INVALIDAS 401', async () => {
+    await registrar(DATOS, { ejecutar });
+
+    await expect(
+      iniciarSesion({ email: DATOS.email, contrasena: 'otra-contrasena' }, { ejecutar }),
+    ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', estado: 401 });
+  });
+
+  it('correo inexistente -> mismo codigo, estado y mensaje que contrasena incorrecta', async () => {
+    await registrar(DATOS, { ejecutar });
+
+    let errorContrasena;
+    try {
+      await iniciarSesion({ email: DATOS.email, contrasena: 'otra-contrasena' }, { ejecutar });
+    } catch (error) {
+      errorContrasena = error;
+    }
+
+    let errorInexistente;
+    try {
+      await iniciarSesion({ email: 'nadie@ejemplo.com', contrasena: 'lo-que-sea' }, { ejecutar });
+    } catch (error) {
+      errorInexistente = error;
+    }
+
+    expect(errorInexistente.codigo).toBe(errorContrasena.codigo);
+    expect(errorInexistente.estado).toBe(errorContrasena.estado);
+    expect(errorInexistente.message).toBe(errorContrasena.message);
+  });
+
+  it(
+    'correo inexistente tarda al menos 100ms: se ejecuta la comparacion ficticia',
+    async () => {
+      const inicio = performance.now();
+
+      await expect(
+        iniciarSesion({ email: 'nadie@ejemplo.com', contrasena: 'lo-que-sea' }, { ejecutar }),
+      ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS' });
+
+      const duracion = performance.now() - inicio;
+      // Sin comparar contra HASH_FICTICIO esto tarda ~1ms; con bcrypt de coste
+      // 12 de verdad, bastante mas de 100ms.
+      expect(duracion).toBeGreaterThanOrEqual(100);
+    },
+    10_000,
+  );
+});
+
+describe('usuarioActual', () => {
+  it('id existente -> id, nombre y email exactos', async () => {
+    const { usuario } = await registrar(DATOS, { ejecutar });
+
+    const actual = await usuarioActual(usuario.id, { ejecutar });
+
+    expect(actual).toEqual({ id: usuario.id, nombre: DATOS.nombre, email: DATOS.email });
+  });
+
+  it('id inexistente -> SESION_INVALIDA 401', async () => {
+    await expect(usuarioActual('999999', { ejecutar })).rejects.toMatchObject({
+      codigo: 'SESION_INVALIDA',
+      estado: 401,
+    });
   });
 });
