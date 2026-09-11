@@ -1,26 +1,60 @@
-import { noImplementado } from './errores.js';
+import { noImplementado, emailDuplicado } from './errores.js';
+import { hashear } from '../infra/hash.js';
+import { firmar } from '../infra/jwt.js';
+import { insertarUsuario } from '../data/usuarios.js';
 
 /**
  * Reglas de negocio de autenticacion.
  *
- * LET-18 solo congela el contrato: cada funcion existe con su firma definitiva y
- * hoy lanza `NO_IMPLEMENTADO` (501). Las epicas LET-12 a LET-15 rellenan cada
- * una su funcion sin tocar rutas ni controladores.
+ * LET-18 congelo el contrato: cada funcion existe con su firma definitiva.
+ * LET-13 a LET-15 quedan pendientes y siguen lanzando `NO_IMPLEMENTADO` (501).
  *
  * Ninguna funcion conoce HTTP: reciben datos planos y devuelven datos planos o
  * lanzan `ErrorDominio`.
  */
 
+/** Codigo que PostgreSQL (y `pg-mem`) usan para una violacion de unicidad. */
+const VIOLACION_UNICIDAD = '23505';
+
 /**
- * Registra un usuario nuevo y devuelve su sesion.
- * Epica LET-12.
+ * Registra un usuario nuevo: hashea la contrasena, normaliza el correo a
+ * minusculas y lo inserta. Devuelve una sesion recien firmada.
  *
- * @param {{ nombre: string, email: string, contrasena: string }} _datos
+ * No consulta si el correo existe antes de insertar: intenta el insert
+ * directo y traduce el rechazo. Con una consulta previa, dos registros
+ * simultaneos con el mismo correo pasarian los dos (ventana de carrera); el
+ * `UNIQUE` de la base (mas el indice sobre `lower(email)` de la migracion 002)
+ * es lo unico que lo evita de verdad.
+ *
+ * El duplicado se detecta por `error.code === '23505'` (codigo estandar de
+ * PostgreSQL para violacion de restriccion unica), nunca por el nombre de la
+ * restriccion: hay dos restricciones distintas que lo pueden disparar y no
+ * vale la pena acoplarse a cual fue.
+ *
+ * @param {{ nombre: string, email: string, contrasena: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones] -
+ *   `ejecutar` es el ejecutor de consultas inyectable para pruebas; sin el,
+ *   `insertarUsuario` usa el pool real.
  * @returns {Promise<{ token: string, usuario: { id: string, nombre: string, email: string } }>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function registrar(_datos) {
-  throw noImplementado('El registro todavia no esta implementado (LET-12)');
+export async function registrar({ nombre, email, contrasena }, { ejecutar } = {}) {
+  const contrasena_hash = await hashear(contrasena);
+
+  let fila;
+  try {
+    fila = await insertarUsuario(
+      { nombre, email: email.trim().toLowerCase(), contrasena_hash },
+      ejecutar,
+    );
+  } catch (error) {
+    if (error?.code === VIOLACION_UNICIDAD) {
+      throw emailDuplicado();
+    }
+    throw error;
+  }
+
+  const usuario = { id: String(fila.id), nombre: fila.nombre, email: fila.email };
+  return { token: firmar(usuario.id), usuario };
 }
 
 /**

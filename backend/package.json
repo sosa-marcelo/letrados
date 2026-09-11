@@ -12,6 +12,7 @@
     "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0"
