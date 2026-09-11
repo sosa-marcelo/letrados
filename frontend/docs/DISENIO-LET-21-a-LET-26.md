@@ -61,12 +61,35 @@ nueva) repiten la misma forma:
     no se trata distinto: usa el mismo camino genérico, como pidió el
     integrador.
   - Las pantallas con una regla de negocio específica sobre un código (login:
-    nunca marcar campo; registro: `EMAIL_DUPLICADO` sí marca el campo correo)
-    la aplican antes de caer al genérico.
+    401 `CREDENCIALES_INVALIDAS` nunca marca campo, sólo `errorGeneral`;
+    registro: 409 `EMAIL_DUPLICADO` sí marca el campo correo) la aplican antes
+    de caer al genérico.
 
 Formulario en un `<form onSubmit={...}>` real (no sólo el botón), para que
 Enter también envíe — no estaba escrito pero es el comportamiento esperado de
-cualquier formulario HTML y no contradice nada.
+cualquier formulario HTML y no contradice nada. Los `<input>` llevan
+`required` por semántica/accesibilidad aunque el `<form>` use `noValidate`
+(la validación de formato la maneja el backend vía `DATOS_INVALIDOS`, no el
+navegador — así los mensajes de error son siempre los del sistema de diseño).
+
+## 3.1 `PantallaAuth.css`
+
+Layout compartido por las cuatro pantallas con formulario (Entrar, Crear
+cuenta, Recuperar/Enlace enviado, Contraseña nueva): franja de color pleno,
+grid a dos columnas, orbes decorativos, alerta genérica, pie con enlaces.
+Vive en `frontend/src/paginas/PantallaAuth.css` con nombres de clase
+`.pantalla-auth*`.
+
+**Por qué un archivo por página y no un componente `<PantallaAuth>`:** las
+seis tareas salen de cuatro ramas de épica que hoy no comparten historia
+(`LET-34`, `LET-35`, `LET-36` más la que ya existía). Un componente
+compartido creado en una rama no aparece en las otras hasta que el
+integrador las una. La salida más simple es que cada rama que lo necesite
+cree el mismo archivo `PantallaAuth.css` con el mismo contenido (no un
+`.css` por pantalla): si el contenido es idéntico, un merge futuro no
+tiene por qué generar conflicto, y ya queda todo en un solo lugar para
+cuando las ramas se junten. Cada página sólo pone su propio `background`
+(el pleno) inline.
 
 ---
 
@@ -96,10 +119,14 @@ rompan; el `marco`/grid de cada página sí queda fijo a desktop por ahora.
   el componente `Campo` no lo soporta hoy).
 - `enviar('/auth/login', { email, contrasena })`.
 - Éxito → `entrar(token, usuario)` + `navigate('/')`.
-- Error: un solo `errorGeneral` con `e.mensaje`, **nunca** un `error` en los
-  `Campo` — ni siquiera para `DATOS_INVALIDOS`. Es la única pantalla donde el
-  400 tampoco marca campos: decisión de seguridad explícita del integrador
-  (no confirmar qué campo falló en un login).
+- Error: sigue el patrón general del punto 2 — `DATOS_INVALIDOS` (400) sí
+  mapea `detalles` a cada `Campo` (es una validación de formato, no filtra si
+  la cuenta existe). Para **cualquier otro código** (sobre todo
+  `CREDENCIALES_INVALIDAS`, 401) va **un solo mensaje genérico** arriba del
+  formulario con `e.mensaje`, y ningún `Campo` se marca — ni con `error`, ni
+  con texto. Es la decisión de seguridad del integrador: decir cuál de los dos
+  campos falló (correo inexistente vs. contraseña incorrecta) le confirma a un
+  desconocido qué cuentas existen.
 - Pie: enlaces a `/recuperar` y a `/registro`.
 
 ## 5. LET-27 — Home
@@ -186,7 +213,7 @@ resuelve el integrador).
 - [x] `git fetch` + verificar que las 4 ramas de épica están en `ed11678`
 - [x] Pregunta al integrador (LET-26, contradicción de maquetas, botón Mostrar) — resuelta
 - [x] LET-21 — contexto de sesión
-- [ ] LET-23 — login + `conMostrar` en `Campo`
+- [x] LET-23 — login + `conMostrar` en `Campo`
 - [ ] LET-27 — home
 - [ ] LET-24 — registro
 - [ ] LET-25 — recuperar / enlace enviado
