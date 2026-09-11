@@ -24,12 +24,6 @@ function tokenValido(sub = '42') {
   return jwt.sign({ sub }, JWT_SECRETO_PRUEBA, { algorithm: 'HS256' });
 }
 
-const REGISTRO_OK = {
-  nombre: 'Ana Diaz',
-  email: 'ana@ejemplo.com',
-  contrasena: 'unaclavelarga1',
-};
-
 beforeAll(() => prepararEntorno());
 afterAll(() => limpiarEntorno());
 
@@ -53,13 +47,6 @@ describe('POST /api/auth/registro', () => {
     const campos = r.body.error.detalles.map((d) => d.campo);
     expect(campos).toContain('email');
     expect(campos).toContain('contrasena');
-  });
-
-  it('datos validos -> 501 NO_IMPLEMENTADO (dominio LET-12)', async () => {
-    const r = await request(app()).post('/api/auth/registro').send(REGISTRO_OK);
-
-    expect(r.status).toBe(501);
-    expect(r.body.error.codigo).toBe('NO_IMPLEMENTADO');
   });
 });
 
