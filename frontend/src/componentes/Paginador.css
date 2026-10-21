@@ -1,0 +1,13 @@
+.paginador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding-top: 4px;
+}
+
+.paginador__posicion {
+  font-size: 13px;
+  color: var(--gris);
+  white-space: nowrap;
+}

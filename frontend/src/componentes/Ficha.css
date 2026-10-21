@@ -1,0 +1,80 @@
+/* Ficha de listado. Valores de MisLibros (03-catalogo). */
+
+.grilla-fichas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.ficha {
+  background: var(--blanco);
+  border: var(--borde);
+  border-radius: 16px;
+  box-shadow: var(--sombra-dura);
+  padding: 17px 19px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-width: 0;
+}
+
+.ficha--atenuada {
+  background: var(--hundido);
+  border-color: rgba(20, 20, 20, 0.3);
+  box-shadow: none;
+}
+
+.ficha__titulo {
+  margin: 0;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.ficha__subtitulo {
+  margin: 0;
+  font-size: 13px;
+  color: var(--gris);
+  overflow-wrap: anywhere;
+}
+
+.ficha__pie {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--linea);
+  font-size: 12.5px;
+}
+
+@media (max-width: 900px) {
+  .grilla-fichas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .grilla-fichas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .grilla-fichas {
+    gap: 14px;
+  }
+
+  .ficha {
+    box-shadow: var(--sombra-dura-movil);
+  }
+
+  .ficha--atenuada {
+    box-shadow: none;
+  }
+}

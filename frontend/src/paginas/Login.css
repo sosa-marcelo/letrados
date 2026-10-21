@@ -1,0 +1,23 @@
+/*
+ * Ajustes propios de Entrar sobre el layout compartido (PantallaAuth.css, que
+ * no se toca). La columna de la derecha envuelve la Tarjeta para poder poner
+ * arriba el aviso que deja una sesión cerrada sola («Tu cuenta fue
+ * eliminada»), como en la maqueta de estados del perfil.
+ */
+
+.login__columna {
+  width: 100%;
+  max-width: var(--ancho-tarjeta);
+}
+
+/* Crema con borde tinta; el texto y el tilde en verde. */
+.login__aviso {
+  margin-bottom: 14px;
+  color: var(--verde);
+}
+
+/* El pie es flex en columna: sin esto, «Me olvidé la contraseña» se estira y
+   su subrayado cruza toda la tarjeta. En la maqueta subraya sólo el texto. */
+.login__columna .pantalla-auth__pie {
+  align-items: flex-start;
+}

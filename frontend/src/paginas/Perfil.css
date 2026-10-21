@@ -1,0 +1,130 @@
+/* /perfil. Valores de 06-perfil-y-admin. */
+
+.perfil__columna {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.perfil__solo-lectura {
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: 13px 14px;
+  border: 2px solid rgba(20, 20, 20, 0.2);
+  border-radius: var(--radio-campo);
+  background: transparent;
+  font: inherit;
+  font-size: 15.5px;
+  color: var(--gris);
+}
+
+.perfil__solo-lectura:focus-visible {
+  outline: 3px solid var(--complementario, var(--naranja));
+  outline-offset: 2px;
+}
+
+.perfil__datos {
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linea);
+}
+
+.perfil__datos dt {
+  font-size: var(--texto-etiqueta);
+  font-weight: var(--peso-etiqueta);
+  color: var(--gris);
+  margin-bottom: 3px;
+}
+
+.perfil__datos dd {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.perfil__enlace {
+  color: var(--tinta);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid var(--naranja);
+}
+
+.perfil__enlace:hover {
+  background: var(--naranja);
+}
+
+.perfil__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.perfil__nota {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--gris);
+}
+
+.perfil__guardado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: var(--borde);
+  background: var(--verde);
+  color: var(--crema);
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.perfil__campo-clave .campo {
+  margin-bottom: 0;
+}
+
+.perfil__requisitos {
+  margin: 9px 0 16px;
+}
+
+.perfil__baja {
+  border-color: var(--rojo);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.perfil__baja-titulo {
+  color: var(--rojo);
+  margin-bottom: 6px;
+}
+
+.perfil__palabra .campo__input {
+  max-width: 160px;
+  letter-spacing: 0.12em;
+}
+
+@media (max-width: 480px) {
+  .perfil__datos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .perfil__pie,
+  .perfil__baja {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .perfil__pie .boton,
+  .perfil__baja .boton {
+    width: 100%;
+  }
+}

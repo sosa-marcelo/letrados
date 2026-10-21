@@ -1,0 +1,121 @@
+/* Diálogo modal. Valores de 03-catalogo (alta, edición y retiro). */
+
+.dialogo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 20, 20, 0.58);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.dialogo__panel {
+  width: 460px;
+  max-width: 100%;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: var(--crema);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: 16px;
+  box-shadow: var(--sombra-dura);
+  padding: 24px 26px;
+  margin: auto;
+}
+
+.dialogo__panel:focus {
+  outline: none;
+}
+
+.dialogo__panel--peligro {
+  border-color: var(--rojo);
+}
+
+.dialogo__titulo {
+  margin: 0 0 14px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+}
+
+.dialogo__panel--peligro .dialogo__titulo {
+  color: var(--rojo);
+}
+
+.dialogo__texto {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--gris);
+  line-height: 1.5;
+}
+
+.dialogo__texto b {
+  color: var(--tinta);
+}
+
+.dialogo__lista {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+
+.dialogo__lista li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.dialogo__lista li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rojo);
+}
+
+.dialogo__lista b {
+  color: var(--tinta);
+}
+
+.dialogo__acciones {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.dialogo__cuerpo > .campo:last-of-type {
+  margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+  .dialogo {
+    padding: 12px;
+  }
+
+  .dialogo__panel {
+    padding: 20px 18px;
+    box-shadow: var(--sombra-dura-movil);
+  }
+
+  .dialogo__titulo {
+    font-size: 21px;
+  }
+
+  .dialogo__acciones .boton {
+    flex: 1 1 auto;
+  }
+}
