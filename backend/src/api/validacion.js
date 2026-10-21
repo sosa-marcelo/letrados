@@ -203,3 +203,29 @@ export function validarLibro(cuerpo = {}) {
   lanzarSiHay(detalles);
   return { titulo, autor, cantidad };
 }
+
+/**
+ * Baja de cuenta (RF-09): pide la contrasena para volver a autenticarse.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ contrasena: string }}
+ */
+export function validarBaja(cuerpo = {}) {
+  const contrasena = typeof cuerpo.contrasena === 'string' ? cuerpo.contrasena : '';
+  if (contrasena === '') {
+    throw datosInvalidos([{ campo: 'contrasena', mensaje: 'La contrasena es obligatoria' }]);
+  }
+  return { contrasena };
+}
+
+/**
+ * Si un parametro de ruta puede ser un id (BIGSERIAL): entero positivo. Lo que
+ * no lo es se responde 404 sin consultar la base, porque el cast a BIGINT de
+ * un texto cualquiera fallaria como 500.
+ *
+ * @param {string} crudo
+ * @returns {boolean}
+ */
+export function esIdValido(crudo) {
+  return typeof crudo === 'string' && /^[1-9]\d{0,17}$/.test(crudo);
+}
