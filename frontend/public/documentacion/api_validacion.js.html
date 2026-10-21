@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: api/validacion.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: api/validacion.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { datosInvalidos } from '../domain/errores.js';
+
+/**
+ * Validacion de la entrada de la API. Sin libreria: son cuatro formularios y las
+ * reglas son simples. Cada `validar*` recibe el cuerpo crudo, junta todos los
+ * errores en `detalles` y, si hay alguno, lanza `datosInvalidos(detalles)` (400).
+ *
+ * Lo que NO hace: normalizar el correo a minusculas. Eso es una regla de negocio
+ * y vive en `domain`. Aca solo se recorta el espacio de los bordes para validar.
+ */
+
+// Suficiente para descartar lo obviamente mal escrito. La verdad sobre si un
+// correo existe la tiene el envio, no una expresion regular.
+const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const LARGO_MIN_CONTRASENA = 8;
+const LARGO_MAX_NOMBRE = 80;
+const LARGO_MAX_EMAIL = 254;
+
+const TIENE_LETRA = /[a-zA-Z]/;
+const TIENE_NUMERO = /[0-9]/;
+const BYTES_MAX_CONTRASENA = 72;
+
+/** @param {unknown} valor */
+function esTextoNoVacio(valor) {
+  return typeof valor === 'string' &amp;&amp; valor.trim() !== '';
+}
+
+/**
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ */
+function lanzarSiHay(detalles) {
+  if (detalles.length > 0) {
+    throw datosInvalidos(detalles);
+  }
+}
+
+/** Reglas de una contrasena nueva. Agrega lo que encuentre a `detalles`. */
+function revisarContrasenaNueva(contrasena, detalles) {
+  if (contrasena.length &lt; LARGO_MIN_CONTRASENA) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: `La contrasena debe tener al menos ${LARGO_MIN_CONTRASENA} caracteres`,
+    });
+    return; // si es corta, con esa queja alcanza
+  }
+
+  if (!TIENE_LETRA.test(contrasena) || !TIENE_NUMERO.test(contrasena)) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: 'La contrasena debe tener al menos una letra y un numero',
+    });
+  }
+
+  if (Buffer.byteLength(contrasena, 'utf8') > BYTES_MAX_CONTRASENA) {
+    detalles.push({
+      campo: 'contrasena',
+      mensaje: `La contrasena no puede superar los ${BYTES_MAX_CONTRASENA} bytes`,
+    });
+  }
+}
+
+/**
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ nombre: string, email: string, contrasena: string }}
+ */
+export function validarRegistro(cuerpo = {}) {
+  const detalles = [];
+  const nombre = typeof cuerpo.nombre === 'string' ? cuerpo.nombre.trim() : '';
+  const email = typeof cuerpo.email === 'string' ? cuerpo.email.trim() : '';
+  const contrasena =
+    typeof cuerpo.contrasena === 'string' ? cuerpo.contrasena : '';
+
+  if (nombre === '') {
+    detalles.push({ campo: 'nombre', mensaje: 'El nombre es obligatorio' });
+  } else if (nombre.length > LARGO_MAX_NOMBRE) {
+    detalles.push({
+      campo: 'nombre',
+      mensaje: `El nombre no puede superar los ${LARGO_MAX_NOMBRE} caracteres`,
+    });
+  }
+
+  if (!esTextoNoVacio(email) || !FORMATO_EMAIL.test(email)) {
+    detalles.push({ campo: 'email', mensaje: 'El correo no tiene un formato valido' });
+  } else if (email.length > LARGO_MAX_EMAIL) {
+    detalles.push({
+      campo: 'email',
+      mensaje: `El correo no puede superar los ${LARGO_MAX_EMAIL} caracteres`,
+    });
+  }
+
+  revisarContrasenaNueva(contrasena, detalles);
+
+  lanzarSiHay(detalles);
+  return { nombre, email, contrasena };
+}
+
+/**
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ email: string, contrasena: string }}
+ */
+export function validarLogin(cuerpo = {}) {
+  const detalles = [];
+  const email = typeof cuerpo.email === 'string' ? cuerpo.email.trim() : '';
+  const contrasena =
+    typeof cuerpo.contrasena === 'string' ? cuerpo.contrasena : '';
+
+  if (!esTextoNoVacio(email)) {
+    detalles.push({ campo: 'email', mensaje: 'El correo es obligatorio' });
+  }
+  if (contrasena === '') {
+    detalles.push({ campo: 'contrasena', mensaje: 'La contrasena es obligatoria' });
+  }
+
+  lanzarSiHay(detalles);
+  return { email, contrasena };
+}
+
+/**
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ email: string }}
+ */
+export function validarPedidoRecuperacion(cuerpo = {}) {
+  const detalles = [];
+  const email = typeof cuerpo.email === 'string' ? cuerpo.email.trim() : '';
+
+  if (!esTextoNoVacio(email) || !FORMATO_EMAIL.test(email)) {
+    detalles.push({ campo: 'email', mensaje: 'El correo no tiene un formato valido' });
+  }
+
+  lanzarSiHay(detalles);
+  return { email };
+}
+
+/**
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ token: string, contrasena: string }}
+ */
+export function validarConfirmacionRecuperacion(cuerpo = {}) {
+  const detalles = [];
+  const token = typeof cuerpo.token === 'string' ? cuerpo.token.trim() : '';
+  const contrasena =
+    typeof cuerpo.contrasena === 'string' ? cuerpo.contrasena : '';
+
+  if (token === '') {
+    detalles.push({ campo: 'token', mensaje: 'El token es obligatorio' });
+  }
+  revisarContrasenaNueva(contrasena, detalles);
+
+  lanzarSiHay(detalles);
+  return { token, contrasena };
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

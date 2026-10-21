@@ -1,21 +1,28 @@
-import { sesionInvalida } from '../../domain/errores.js';
+import { sesionInvalida, cuentaBloqueada } from '../../domain/errores.js';
 import { verificar } from '../../infra/jwt.js';
+import { buscarSesionVigente } from '../../data/sesiones.js';
+import { buscarUsuarioPorId } from '../../data/usuarios.js';
 
 /**
- * Middleware de sesion. Lee `Authorization: Bearer <token>` y delega en
- * `infra/jwt.verificar` (mismo lugar que firma el token en `infra/jwt.firmar`),
- * que devuelve `{ id }`. Deja `req.usuario = { id }`.
+ * Middleware de sesion (LET-48). Asincrono: ademas de la firma, consulta la base.
  *
- * Cualquier problema —header ausente, esquema distinto de Bearer, firma
- * invalida, token vencido— sale como 401 `SESION_INVALIDA`, sin decir cual de
- * los casos fue.
+ * ```
+ * 1. Leer el Bearer.                 falta o mal esquema  -> 401 SESION_INVALIDA
+ * 2. verificar(token).               firma mala o vencido -> 401 SESION_INVALIDA
+ * 3. buscarSesionVigente(jti).       revocada o vencida   -> 401 SESION_INVALIDA
+ * 4. buscarUsuarioPorId(sub).        no existe            -> 401 SESION_INVALIDA
+ * 5. usuario.estado !== 'activa'                          -> 403 CUENTA_BLOQUEADA
+ * 6. req.usuario = { id, rol, estado, jti }
+ * ```
  *
- * El logout es del lado del cliente (borra el token): no hay lista de revocacion
- * en el servidor.
+ * Los casos de 401 salen todos iguales, sin decir cual fue.
+ *
+ * **El rol sale de la fila de `usuarios`, no del token**: quien pierde el rol
+ * de administrador deja de ejercerlo al instante, no cuando vence su token.
  *
  * @type {import('express').RequestHandler}
  */
-export function autenticar(req, _res, next) {
+export async function autenticar(req, _res, next) {
   const cabecera = req.get('authorization') ?? '';
   const [esquema, token] = cabecera.split(' ');
 
@@ -23,12 +30,33 @@ export function autenticar(req, _res, next) {
     return next(sesionInvalida());
   }
 
+  let carga;
   try {
-    const { id } = verificar(token);
-    req.usuario = { id };
-    return next();
+    carga = verificar(token);
   } catch {
     return next(sesionInvalida());
+  }
+  if (!carga.jti) return next(sesionInvalida());
+
+  try {
+    const sesion = await buscarSesionVigente(carga.jti);
+    if (!sesion || String(sesion.usuario_id) !== carga.id) {
+      return next(sesionInvalida());
+    }
+
+    const usuario = await buscarUsuarioPorId(carga.id);
+    if (!usuario) return next(sesionInvalida());
+    if (usuario.estado !== 'activa') return next(cuentaBloqueada());
+
+    req.usuario = {
+      id: String(usuario.id),
+      rol: usuario.rol,
+      estado: usuario.estado,
+      jti: carga.jti,
+    };
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 

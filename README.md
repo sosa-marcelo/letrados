@@ -60,11 +60,31 @@ Vite redirige `/api` al backend, así que en desarrollo no hace falta CORS.
 | `npm run servir` | Sirve sin compilar. Solo si ya compilaste antes. |
 | `npm test` | Pruebas de los dos workspaces, con cobertura. |
 | `npm run migrar` | Aplica las migraciones pendientes. Antes de tocar nada avisa a qué base va a aplicar. |
+| `npm run docs` | Genera la documentación del código con JSDoc en `frontend/public/documentacion/`. |
 
 **`npm run dev` y `npm start` no son lo mismo.** En `dev` el frontend lo sirve
 Vite; en `start` lo sirve Express desde el build, que es el único modo que
 ejercita el orden de montaje de la API, los estáticos y el comodín de la SPA.
 Conviene correr `npm start` antes de dar algo por terminado.
+
+## Documentación del código
+
+`npm run docs` genera la documentación HTML del backend a partir de los
+comentarios JSDoc. Se publica junto con la aplicación en `/documentacion/index.html`.
+Después de cambiar comentarios, regenerarla y subirla en el mismo PR.
+
+## Crear el primer administrador
+
+Toda cuenta nueva nace con el rol `usuario` (RF-06) y no hay pantalla para
+promover cuentas, porque ningún requisito la pide. El primer administrador se
+crea una sola vez, contra la base, después de registrarse normalmente:
+
+```sql
+UPDATE usuarios SET rol = 'administrador' WHERE lower(email) = lower('correo@ejemplo.com');
+```
+
+El cambio vale al instante, sin volver a iniciar sesión: el rol se lee de la
+base en cada petición, no del token.
 
 ## Sobre el archivo `.env`
 

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: data/sesiones.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: data/sesiones.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { consultar } from '../infra/bd.js';
+
+/**
+ * @typedef {object} FilaSesion
+ * @property {string} jti - UUID; el mismo valor que viaja en el claim `jti` del token.
+ * @property {string} usuario_id
+ * @property {Date} emitida_en
+ * @property {Date} expira_en
+ * @property {Date | null} revocada_en
+ */
+
+/**
+ * @typedef {(sql: string, parametros?: unknown[]) => Promise&lt;{ rows: any[], rowCount: number }>} Ejecutor
+ */
+
+const COLUMNAS = 'jti, usuario_id, emitida_en, expira_en, revocada_en';
+
+/**
+ * Inserta una sesion nueva.
+ *
+ * @param {{ jti: string, usuario_id: string | number, expira_en: Date | string }} datos
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise&lt;FilaSesion>}
+ */
+export async function insertarSesion({ jti, usuario_id, expira_en }, ejecutar = consultar) {
+  const { rows } = await ejecutar(
+    `INSERT INTO sesiones (jti, usuario_id, expira_en)
+     VALUES ($1, $2, $3)
+     RETURNING ${COLUMNAS}`,
+    [jti, usuario_id, expira_en],
+  );
+  return rows[0];
+}
+
+/**
+ * Busca una sesion vigente: sin revocar y sin vencer. La comparacion contra
+ * `now()` la hace PostgreSQL, no el proceso.
+ *
+ * @param {string} jti
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise&lt;FilaSesion | null>}
+ */
+export async function buscarSesionVigente(jti, ejecutar = consultar) {
+  const { rows } = await ejecutar(
+    `SELECT ${COLUMNAS}
+       FROM sesiones
+      WHERE jti = $1
+        AND revocada_en IS NULL
+        AND expira_en > now()`,
+    [jti],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Revoca una sesion. Si ya estaba revocada no la toca (la guarda
+ * `revocada_en IS NULL` conserva la fecha de la primera revocacion).
+ *
+ * @param {string} jti
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise&lt;number>} cantidad de filas afectadas (0 o 1).
+ */
+export async function revocarSesion(jti, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE sesiones
+        SET revocada_en = now()
+      WHERE jti = $1
+        AND revocada_en IS NULL`,
+    [jti],
+  );
+  return rowCount ?? 0;
+}
+
+/**
+ * Revoca todas las sesiones abiertas de un usuario. `excepto` deja viva una:
+ * el cambio de contrasena (RF-05) no cierra la sesion desde la que se hizo.
+ *
+ * @param {string | number} usuario_id
+ * @param {{ excepto?: string }} [opciones]
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise&lt;number>} cantidad de sesiones revocadas.
+ */
+export async function revocarSesionesDeUsuario(
+  usuario_id,
+  { excepto } = {},
+  ejecutar = consultar,
+) {
+  const { rowCount } = excepto
+    ? await ejecutar(
+        `UPDATE sesiones
+            SET revocada_en = now()
+          WHERE usuario_id = $1
+            AND revocada_en IS NULL
+            AND jti &lt;> $2`,
+        [usuario_id, excepto],
+      )
+    : await ejecutar(
+        `UPDATE sesiones
+            SET revocada_en = now()
+          WHERE usuario_id = $1
+            AND revocada_en IS NULL`,
+        [usuario_id],
+      );
+  return rowCount ?? 0;
+}
+
+/**
+ * Borra las sesiones vencidas hace mas de `dias` dias. Limpieza, no seguridad:
+ * una sesion vencida ya no autentica aunque siga en la tabla.
+ *
+ * @param {number} dias
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise&lt;number>} cantidad de filas borradas.
+ */
+export async function borrarSesionesVencidas(dias, ejecutar = consultar) {
+  const limite = new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
+  const { rowCount } = await ejecutar(
+    `DELETE FROM sesiones
+      WHERE expira_en &lt; $1`,
+    [limite],
+  );
+  return rowCount ?? 0;
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

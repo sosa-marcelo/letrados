@@ -1,0 +1,18 @@
+{
+  "source": {
+    "include": ["src"],
+    "includePattern": "\\.js$"
+  },
+  "sourceType": "module",
+  "plugins": ["plugins/markdown", "./jsdoc-tipos.cjs"],
+  "opts": {
+    "destination": "../frontend/public/documentacion",
+    "recurse": true,
+    "readme": "src/README-DOCUMENTACION.md",
+    "encoding": "utf8"
+  },
+  "templates": {
+    "cleverLinks": true,
+    "default": { "includeDate": false }
+  }
+}

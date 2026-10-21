@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: ErrorDominio</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: ErrorDominio</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>ErrorDominio<span class="signature">(codigo, estado, mensaje, detalles<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h2>
+        
+            <div class="class-description"><p>Error de dominio. Lo lanza la capa <code>domain</code> cuando una regla de negocio no se
+cumple. Lleva su propio <code>codigo</code> y <code>estado</code> HTTP para que <code>api</code> lo traduzca a
+respuesta sin que <code>domain</code> tenga que conocer Express.</p>
+<p><code>domain</code> NO deberia importar nada de HTTP; esta clase es la excepcion acordada:
+un numero de estado es un dato, no una dependencia de framework.</p></div>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+    <h2>Constructor</h2>
+    
+
+    
+    <h4 class="name" id="ErrorDominio"><span class="type-signature"></span>new ErrorDominio<span class="signature">(codigo, estado, mensaje, detalles<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>codigo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>identificador estable, en MAYUSCULAS (p. ej. <code>EMAIL_DUPLICADO</code>).</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>estado</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>codigo de estado HTTP.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>mensaje</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>texto para el usuario final. Sin datos internos.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>detalles</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">*</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>errores puntuales.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="domain_errores.js.html">domain/errores.js</a>, <a href="domain_errores.js.html#line9">line 9</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="ErrorDominio.html">ErrorDominio</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

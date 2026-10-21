@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: domain/errores.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: domain/errores.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Error de dominio. Lo lanza la capa `domain` cuando una regla de negocio no se
+ * cumple. Lleva su propio `codigo` y `estado` HTTP para que `api` lo traduzca a
+ * respuesta sin que `domain` tenga que conocer Express.
+ *
+ * `domain` NO deberia importar nada de HTTP; esta clase es la excepcion acordada:
+ * un numero de estado es un dato, no una dependencia de framework.
+ */
+export class ErrorDominio extends Error {
+  /**
+   * @param {string} codigo - identificador estable, en MAYUSCULAS (p. ej. `EMAIL_DUPLICADO`).
+   * @param {number} estado - codigo de estado HTTP.
+   * @param {string} mensaje - texto para el usuario final. Sin datos internos.
+   * @param {Array&lt;{ campo?: string, mensaje: string }>} [detalles] - errores puntuales.
+   */
+  constructor(codigo, estado, mensaje, detalles = []) {
+    super(mensaje);
+    this.name = 'ErrorDominio';
+    this.codigo = codigo;
+    this.estado = estado;
+    this.detalles = detalles;
+  }
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 501 NO_IMPLEMENTADO
+ */
+export function noImplementado(
+  mensaje = 'Esta funcionalidad todavia no esta implementada',
+) {
+  return new ErrorDominio('NO_IMPLEMENTADO', 501, mensaje);
+}
+
+/**
+ * @param {Array&lt;{ campo?: string, mensaje: string }>} [detalles]
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 400 DATOS_INVALIDOS
+ */
+export function datosInvalidos(
+  detalles = [],
+  mensaje = 'Los datos enviados no son validos',
+) {
+  return new ErrorDominio('DATOS_INVALIDOS', 400, mensaje, detalles);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 404 RUTA_NO_ENCONTRADA
+ */
+export function rutaNoEncontrada(mensaje = 'La ruta solicitada no existe') {
+  return new ErrorDominio('RUTA_NO_ENCONTRADA', 404, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 400 JSON_INVALIDO
+ */
+export function jsonInvalido(
+  mensaje = 'El cuerpo de la peticion no es JSON valido',
+) {
+  return new ErrorDominio('JSON_INVALIDO', 400, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 409 EMAIL_DUPLICADO
+ */
+export function emailDuplicado(
+  mensaje = 'Ya existe una cuenta con ese correo',
+) {
+  return new ErrorDominio('EMAIL_DUPLICADO', 409, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 400 TOKEN_INVALIDO
+ */
+export function tokenInvalido(
+  mensaje = 'El enlace no es valido o ya vencio',
+) {
+  return new ErrorDominio('TOKEN_INVALIDO', 400, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 CREDENCIALES_INVALIDAS
+ */
+export function credencialesInvalidas(
+  mensaje = 'El correo o la contrasena no son correctos',
+) {
+  return new ErrorDominio('CREDENCIALES_INVALIDAS', 401, mensaje);
+}
+
+/**
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 SESION_INVALIDA
+ */
+export function sesionInvalida(
+  mensaje = 'La sesion no es valida o expiro. Inicia sesion de nuevo.',
+) {
+  return new ErrorDominio('SESION_INVALIDA', 401, mensaje);
+}
+
+/**
+ * Cuenta bloqueada o dada de baja. Solo se responde a quien ya probo saber la
+ * contrasena (DISENIO-GENERAL §7.4), asi que no revela nada nuevo.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 403 CUENTA_BLOQUEADA
+ */
+export function cuentaBloqueada(
+  mensaje = 'Tu cuenta no esta habilitada. Si crees que es un error, contacta a un administrador.',
+) {
+  return new ErrorDominio('CUENTA_BLOQUEADA', 403, mensaje);
+}
+
+/**
+ * La sesion es valida pero no tiene permiso (rol).
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 403 ACCESO_DENEGADO
+ */
+export function accesoDenegado(
+  mensaje = 'No tenes permiso para realizar esta accion',
+) {
+  return new ErrorDominio('ACCESO_DENEGADO', 403, mensaje);
+}
+
+/**
+ * El recurso no existe, o existe y no corresponde mostrarlo (un recurso
+ * privado ajeno): devolver 403 ahi confirmaria que el id existe.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 404 NO_ENCONTRADO
+ */
+export function noEncontrado(mensaje = 'No encontramos lo que buscabas') {
+  return new ErrorDominio('NO_ENCONTRADO', 404, mensaje);
+}
+
+/**
+ * La operacion no es legal para el estado actual del recurso.
+ *
+ * @param {string} mensaje
+ * @param {Array&lt;{ campo?: string, mensaje: string }>} [detalles]
+ * @returns {ErrorDominio} 409 ESTADO_INVALIDO
+ */
+export function estadoInvalido(mensaje, detalles = []) {
+  return new ErrorDominio('ESTADO_INVALIDO', 409, mensaje, detalles);
+}
+
+/**
+ * Reautenticacion fallida (cambio de contrasena, baja). La sesion ya
+ * identifica a la persona: decirle que campo fallo no protege nada.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 CONTRASENA_INCORRECTA
+ */
+export function contrasenaIncorrecta(mensaje = 'La contrasena no es correcta') {
+  return new ErrorDominio('CONTRASENA_INCORRECTA', 401, mensaje);
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

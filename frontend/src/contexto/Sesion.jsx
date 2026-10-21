@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
-import { obtener, ErrorApi } from '../servicios/cliente.js'
+import { obtener, enviar, ErrorApi } from '../servicios/cliente.js'
 import { borrarToken, guardarToken, leerToken } from '../servicios/token.js'
 
 /*
@@ -47,7 +47,17 @@ export function ProveedorSesion({ children }) {
     setUsuario(usuarioNuevo)
   }, [])
 
-  const salir = useCallback(() => {
+  // RF-03: primero se avisa al servidor (POST /auth/logout revoca la sesión)
+  // y después se olvida el token. Si el aviso falla (sin red, sesión ya
+  // vencida), igual se cierra del lado del cliente: el usuario pidió salir.
+  const salir = useCallback(async () => {
+    if (leerToken()) {
+      try {
+        await enviar('/auth/logout')
+      } catch {
+        /* el token se borra igual */
+      }
+    }
     borrarToken()
     setUsuario(null)
   }, [])
@@ -59,7 +69,7 @@ export function ProveedorSesion({ children }) {
   )
 }
 
-/** @returns {{ usuario: object|null, cargando: boolean, entrar: (token: string, usuario: object) => void, salir: () => void }} */
+/** @returns {{ usuario: object|null, cargando: boolean, entrar: (token: string, usuario: object) => void, salir: () => Promise<void> }} */
 export function useSesion() {
   const contexto = useContext(ContextoSesion)
   if (!contexto) {

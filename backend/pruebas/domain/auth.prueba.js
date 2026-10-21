@@ -6,6 +6,7 @@ import {
   registrar,
   iniciarSesion,
   usuarioActual,
+  cerrarSesion,
   pedirRecuperacion,
   confirmarRecuperacion,
 } from '../../src/domain/auth.js';
@@ -33,10 +34,11 @@ const DATOS = {
 };
 
 describe('registrar', () => {
-  it('devuelve un usuario con exactamente id, nombre y email', async () => {
+  it('devuelve un usuario con exactamente id, nombre, email y rol', async () => {
     const { usuario } = await registrar(DATOS, { ejecutar });
 
-    expect(Object.keys(usuario).sort()).toEqual(['email', 'id', 'nombre']);
+    expect(Object.keys(usuario).sort()).toEqual(['email', 'id', 'nombre', 'rol']);
+    expect(usuario.rol).toBe('usuario');
     expect(usuario.nombre).toBe(DATOS.nombre);
     expect(usuario.email).toBe(DATOS.email);
   });
@@ -44,7 +46,7 @@ describe('registrar', () => {
   it('el token verifica y su id coincide con el del usuario', async () => {
     const { token, usuario } = await registrar(DATOS, { ejecutar });
 
-    expect(verificarToken(token)).toEqual({ id: usuario.id });
+    expect(verificarToken(token)).toMatchObject({ id: usuario.id, rol: 'usuario' });
   });
 
   it('el correo queda guardado en minusculas', async () => {
@@ -320,7 +322,7 @@ describe('confirmarRecuperacion', () => {
 });
 
 describe('iniciarSesion', () => {
-  it('login correcto -> token y usuario con exactamente id, nombre y email', async () => {
+  it('login correcto -> token y usuario con exactamente id, nombre, email y rol', async () => {
     await registrar(DATOS, { ejecutar });
 
     const { token, usuario } = await iniciarSesion(
@@ -328,8 +330,9 @@ describe('iniciarSesion', () => {
       { ejecutar },
     );
 
-    expect(Object.keys(usuario).sort()).toEqual(['email', 'id', 'nombre']);
-    expect(verificarToken(token)).toEqual({ id: usuario.id });
+    expect(Object.keys(usuario).sort()).toEqual(['email', 'id', 'nombre', 'rol']);
+    expect(usuario.rol).toBe('usuario');
+    expect(verificarToken(token)).toMatchObject({ id: usuario.id, rol: 'usuario' });
   });
 
   it('correo con otras mayusculas y espacios alrededor -> entra igual', async () => {
@@ -392,12 +395,12 @@ describe('iniciarSesion', () => {
 });
 
 describe('usuarioActual', () => {
-  it('id existente -> id, nombre y email exactos', async () => {
+  it('id existente -> id, nombre, email y rol exactos', async () => {
     const { usuario } = await registrar(DATOS, { ejecutar });
 
     const actual = await usuarioActual(usuario.id, { ejecutar });
 
-    expect(actual).toEqual({ id: usuario.id, nombre: DATOS.nombre, email: DATOS.email });
+    expect(actual).toEqual({ id: usuario.id, nombre: DATOS.nombre, email: DATOS.email, rol: 'usuario' });
   });
 
   it('id inexistente -> SESION_INVALIDA 401', async () => {
@@ -405,5 +408,64 @@ describe('usuarioActual', () => {
       codigo: 'SESION_INVALIDA',
       estado: 401,
     });
+  });
+});
+
+describe('sesiones revocables (LET-50, LET-51)', () => {
+  it('el login inserta una sesion vigente con el jti del token', async () => {
+    await registrar(DATOS, { ejecutar });
+    const { token } = await iniciarSesion(
+      { email: DATOS.email, contrasena: DATOS.contrasena },
+      { ejecutar },
+    );
+    const { jti } = verificarToken(token);
+
+    const { rows } = await ejecutar('SELECT * FROM sesiones WHERE jti = $1', [jti]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].revocada_en).toBeNull();
+  });
+
+  it('la sesion vence cuando vence el token', async () => {
+    await registrar(DATOS, { ejecutar });
+    const { token } = await iniciarSesion(
+      { email: DATOS.email, contrasena: DATOS.contrasena },
+      { ejecutar },
+    );
+    const { jti } = verificarToken(token);
+    const { exp } = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+
+    const { rows } = await ejecutar('SELECT expira_en FROM sesiones WHERE jti = $1', [jti]);
+    expect(new Date(rows[0].expira_en).getTime()).toBe(exp * 1000);
+  });
+
+  it('cada login abre una sesion distinta', async () => {
+    await registrar(DATOS, { ejecutar });
+    const credenciales = { email: DATOS.email, contrasena: DATOS.contrasena };
+    const a = await iniciarSesion(credenciales, { ejecutar });
+    const b = await iniciarSesion(credenciales, { ejecutar });
+    expect(verificarToken(a.token).jti).not.toBe(verificarToken(b.token).jti);
+  });
+
+  it('login con cuenta bloqueada -> CUENTA_BLOQUEADA 403 y no abre sesion', async () => {
+    await registrar(DATOS, { ejecutar });
+    await ejecutar(`UPDATE usuarios SET estado = 'bloqueada'`);
+    const antes = (await ejecutar('SELECT * FROM sesiones')).rows.length;
+
+    await expect(
+      iniciarSesion({ email: DATOS.email, contrasena: DATOS.contrasena }, { ejecutar }),
+    ).rejects.toMatchObject({ codigo: 'CUENTA_BLOQUEADA', estado: 403 });
+
+    expect((await ejecutar('SELECT * FROM sesiones')).rows.length).toBe(antes);
+  });
+
+  it('cerrarSesion revoca la fila y es idempotente', async () => {
+    const { token } = await registrar(DATOS, { ejecutar });
+    const { jti } = verificarToken(token);
+
+    await cerrarSesion(jti, { ejecutar });
+    await expect(cerrarSesion(jti, { ejecutar })).resolves.toBeUndefined();
+
+    const { rows } = await ejecutar('SELECT revocada_en FROM sesiones WHERE jti = $1', [jti]);
+    expect(rows[0].revocada_en).not.toBeNull();
   });
 });
