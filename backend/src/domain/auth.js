@@ -3,14 +3,17 @@ import { createHash, randomBytes } from 'node:crypto';
 import {
   emailDuplicado,
   credencialesInvalidas,
+  cuentaBloqueada,
   sesionInvalida,
   tokenInvalido,
 } from './errores.js';
 import { hashear, verificar as verificarContrasena } from '../infra/hash.js';
-import { firmar } from '../infra/jwt.js';
+import { firmar, vencimientoDe } from '../infra/jwt.js';
+import { nuevoJti } from '../infra/sesiones.js';
 import { enviarCorreo } from '../infra/correo.js';
 import { obtenerConfig } from '../infra/config.js';
 import { registrador } from '../infra/registrador.js';
+import { insertarSesion, revocarSesion } from '../data/sesiones.js';
 import {
   insertarUsuario,
   buscarUsuarioPorEmail,
@@ -48,6 +51,34 @@ const HASH_FICTICIO = '$2b$12$tteIclI8DI10MR5pEIt3W.1Dzjp9uTqpZzV8WB6jDXhX9GGWCU
 const VIOLACION_UNICIDAD = '23505';
 
 /**
+ * @typedef {{ id: string, nombre: string, email: string, rol: string }} UsuarioSesion
+ */
+
+/** Lo que el resto del sistema ve de una fila de `usuarios` con sesion. */
+function vistaUsuario(fila) {
+  return { id: String(fila.id), nombre: fila.nombre, email: fila.email, rol: fila.rol };
+}
+
+/**
+ * Abre una sesion para un usuario: genera el `jti`, firma el token con
+ * `{ sub, rol, jti }` e inserta la fila en `sesiones` con el mismo vencimiento
+ * que el token. Sin la fila, `autenticar` rechaza el token.
+ *
+ * @param {{ id: string, rol: string }} usuario
+ * @param {import('../data/usuarios.js').Ejecutor} [ejecutar]
+ * @returns {Promise<string>} el token firmado.
+ */
+async function abrirSesion(usuario, ejecutar) {
+  const jti = nuevoJti();
+  const token = firmar(usuario.id, { rol: usuario.rol, jti });
+  await insertarSesion(
+    { jti, usuario_id: usuario.id, expira_en: vencimientoDe(token) },
+    ejecutar,
+  );
+  return token;
+}
+
+/**
  * Registra un usuario nuevo: hashea la contrasena, normaliza el correo a
  * minusculas y lo inserta. Devuelve una sesion recien firmada.
  *
@@ -66,7 +97,7 @@ const VIOLACION_UNICIDAD = '23505';
  * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones] -
  *   `ejecutar` es el ejecutor de consultas inyectable para pruebas; sin el,
  *   `insertarUsuario` usa el pool real.
- * @returns {Promise<{ token: string, usuario: { id: string, nombre: string, email: string } }>}
+ * @returns {Promise<{ token: string, usuario: UsuarioSesion }>}
  */
 export async function registrar({ nombre, email, contrasena }, { ejecutar } = {}) {
   const contrasena_hash = await hashear(contrasena);
@@ -84,8 +115,9 @@ export async function registrar({ nombre, email, contrasena }, { ejecutar } = {}
     throw error;
   }
 
-  const usuario = { id: String(fila.id), nombre: fila.nombre, email: fila.email };
-  return { token: firmar(usuario.id), usuario };
+  // El rol lo pone el DEFAULT de la columna (RF-06); el registro no lo elige.
+  const usuario = vistaUsuario(fila);
+  return { token: await abrirSesion(usuario, ejecutar), usuario };
 }
 
 /**
@@ -98,9 +130,13 @@ export async function registrar({ nombre, email, contrasena }, { ejecutar } = {}
  * el usuario existe, el tiempo de respuesta delataria que correos estan
  * registrados.
  *
+ * Con credenciales correctas, una cuenta bloqueada o eliminada responde 403
+ * `CUENTA_BLOQUEADA` (RF-02, DISENIO-GENERAL §7.4): solo llega ahi quien ya
+ * probo saber la contrasena. Si esta activa, se abre una sesion revocable.
+ *
  * @param {{ email: string, contrasena: string }} datos
  * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
- * @returns {Promise<{ token: string, usuario: { id: string, nombre: string, email: string } }>}
+ * @returns {Promise<{ token: string, usuario: UsuarioSesion }>}
  */
 export async function iniciarSesion({ email, contrasena }, { ejecutar } = {}) {
   const fila = await buscarUsuarioPorEmail(email.trim().toLowerCase(), ejecutar);
@@ -109,25 +145,38 @@ export async function iniciarSesion({ email, contrasena }, { ejecutar } = {}) {
   // de error tarden lo mismo: si no, el tiempo delata que cuentas existen.
   const coincide = await verificarContrasena(contrasena, fila?.contrasena_hash ?? HASH_FICTICIO);
   if (!fila || !coincide) throw credencialesInvalidas();
+  if (fila.estado !== 'activa') throw cuentaBloqueada();
 
-  const usuario = { id: String(fila.id), nombre: fila.nombre, email: fila.email };
-  return { token: firmar(usuario.id), usuario };
+  const usuario = vistaUsuario(fila);
+  return { token: await abrirSesion(usuario, ejecutar), usuario };
 }
 
 /**
- * Devuelve los datos publicos del usuario de la sesion actual. El id ya viene
- * validado por el middleware `autenticar` (sale del `sub` del JWT); si de
- * todos modos no corresponde a nadie (usuario borrado, por ejemplo), la sesion
- * se trata como invalida.
+ * Cierra una sesion en el servidor (RF-03): revoca la fila del `jti`.
+ * **Idempotente**: cerrar una sesion ya cerrada no es un error, para que el
+ * cliente que reintenta por una desconexion no vea un fallo.
+ *
+ * @param {string} jti
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
+ * @returns {Promise<void>}
+ */
+export async function cerrarSesion(jti, { ejecutar } = {}) {
+  await revocarSesion(jti, ejecutar);
+}
+
+/**
+ * Devuelve los datos del usuario de la sesion actual, con su rol. El id ya
+ * viene validado por el middleware `autenticar`; si de todos modos no
+ * corresponde a nadie, la sesion se trata como invalida.
  *
  * @param {string} usuarioId
  * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
- * @returns {Promise<{ id: string, nombre: string, email: string }>}
+ * @returns {Promise<UsuarioSesion>}
  */
 export async function usuarioActual(usuarioId, { ejecutar } = {}) {
   const fila = await buscarUsuarioPorId(usuarioId, ejecutar);
   if (!fila) throw sesionInvalida();
-  return { id: String(fila.id), nombre: fila.nombre, email: fila.email };
+  return vistaUsuario(fila);
 }
 
 /** Cuanto vive un token de recuperacion antes de vencer. */

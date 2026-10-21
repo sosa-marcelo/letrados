@@ -6,6 +6,8 @@ import { consultar } from '../infra/bd.js';
  * @property {string} nombre
  * @property {string} email
  * @property {string} contrasena_hash
+ * @property {'usuario' | 'administrador'} rol
+ * @property {'activa' | 'bloqueada' | 'eliminada'} estado
  * @property {Date} creado_en
  */
 
@@ -31,7 +33,7 @@ export async function insertarUsuario(
   const { rows } = await ejecutar(
     `INSERT INTO usuarios (nombre, email, contrasena_hash)
      VALUES ($1, $2, $3)
-     RETURNING id, nombre, email, creado_en`,
+     RETURNING id, nombre, email, rol, estado, creado_en`,
     [nombre, email, contrasena_hash],
   );
   return rows[0];
@@ -47,7 +49,7 @@ export async function insertarUsuario(
  */
 export async function buscarUsuarioPorId(id, ejecutar = consultar) {
   const { rows } = await ejecutar(
-    `SELECT id, nombre, email, creado_en
+    `SELECT id, nombre, email, rol, estado, creado_en
        FROM usuarios
       WHERE id = $1`,
     [id],
@@ -69,7 +71,7 @@ export async function buscarUsuarioPorId(id, ejecutar = consultar) {
  */
 export async function buscarUsuarioPorEmail(email, ejecutar = consultar) {
   const { rows } = await ejecutar(
-    `SELECT id, nombre, email, contrasena_hash, creado_en
+    `SELECT id, nombre, email, contrasena_hash, rol, estado, creado_en
        FROM usuarios
       WHERE email = $1`,
     [email],

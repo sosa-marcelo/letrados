@@ -62,12 +62,13 @@ function tokenDelCorreo(mensaje) {
 }
 
 describe('registro', () => {
-  it('con datos validos -> 201, token y usuario con exactamente id, nombre y email', async () => {
+  it('con datos validos -> 201, token y usuario con exactamente id, nombre, email y rol', async () => {
     const r = await request(crearApp()).post('/api/auth/registro').send(DATOS_REGISTRO);
 
     expect(r.status).toBe(201);
     expect(typeof r.body.token).toBe('string');
-    expect(Object.keys(r.body.usuario).sort()).toEqual(['email', 'id', 'nombre']);
+    expect(Object.keys(r.body.usuario).sort()).toEqual(['email', 'id', 'nombre', 'rol']);
+    expect(r.body.usuario.rol).toBe('usuario');
     expect(r.body.usuario.nombre).toBe(DATOS_REGISTRO.nombre);
     expect(r.body.usuario.email).toBe(DATOS_REGISTRO.email);
   });

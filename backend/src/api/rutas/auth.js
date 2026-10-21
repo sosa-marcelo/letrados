@@ -16,9 +16,9 @@ import {
  */
 const rutasAuth = Router();
 
-/** Campos publicos de un usuario. Nunca sale el hash ni `creado_en` por aca. */
+/** Campos de un usuario que salen por auth. Nunca sale el hash ni `creado_en`. */
 function vistaPublica(usuario) {
-  return { id: usuario.id, nombre: usuario.nombre, email: usuario.email };
+  return { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol };
 }
 
 // POST /api/auth/registro -> 201 { token, usuario } | 409 EMAIL_DUPLICADO | 400 DATOS_INVALIDOS
@@ -37,10 +37,17 @@ rutasAuth.post('/auth/login', async (req, res) => {
   res.json({ token, usuario: vistaPublica(usuario) });
 });
 
-// GET /api/auth/yo -> 200 { usuario } | 401 SESION_INVALIDA
+// GET /api/auth/yo -> 200 { usuario } | 401 SESION_INVALIDA | 403 CUENTA_BLOQUEADA
 rutasAuth.get('/auth/yo', autenticar, async (req, res) => {
   const usuario = await auth.usuarioActual(req.usuario.id);
   res.json({ usuario: vistaPublica(usuario) });
+});
+
+// POST /api/auth/logout -> 200 { ok: true } | 401 SESION_INVALIDA   (RF-03)
+// Revoca la sesion del token usado. El cliente, ademas, olvida el token.
+rutasAuth.post('/auth/logout', autenticar, async (req, res) => {
+  await auth.cerrarSesion(req.usuario.jti);
+  res.json({ ok: true });
 });
 
 // POST /api/auth/recuperacion -> 200 SIEMPRE, mismo cuerpo exista o no la cuenta.

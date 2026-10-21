@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: api/rutas/auth.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: api/rutas/auth.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { Router } from 'express';
+
+import * as auth from '../../domain/auth.js';
+import { autenticar } from '../middlewares/autenticar.js';
+import {
+  validarRegistro,
+  validarLogin,
+  validarPedidoRecuperacion,
+  validarConfirmacionRecuperacion,
+} from '../validacion.js';
+
+/**
+ * Rutas de autenticacion. LET-18 congela el contrato: rutas, validacion de
+ * entrada y forma de la respuesta. La logica vive en `domain/auth.js`, que hoy
+ * responde 501; cada epica siguiente rellena su funcion sin tocar este archivo.
+ */
+const rutasAuth = Router();
+
+/** Campos de un usuario que salen por auth. Nunca sale el hash ni `creado_en`. */
+function vistaPublica(usuario) {
+  return { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol };
+}
+
+// POST /api/auth/registro -> 201 { token, usuario } | 409 EMAIL_DUPLICADO | 400 DATOS_INVALIDOS
+rutasAuth.post('/auth/registro', async (req, res) => {
+  const datos = validarRegistro(req.body);
+  const { token, usuario } = await auth.registrar(datos);
+  res.status(201).json({ token, usuario: vistaPublica(usuario) });
+});
+
+// POST /api/auth/login -> 200 { token, usuario } | 401 CREDENCIALES_INVALIDAS
+// El mensaje de error de credenciales lo fija domain, y es siempre el mismo:
+// nunca se dice si fallo el correo o la contrasena.
+rutasAuth.post('/auth/login', async (req, res) => {
+  const datos = validarLogin(req.body);
+  const { token, usuario } = await auth.iniciarSesion(datos);
+  res.json({ token, usuario: vistaPublica(usuario) });
+});
+
+// GET /api/auth/yo -> 200 { usuario } | 401 SESION_INVALIDA | 403 CUENTA_BLOQUEADA
+rutasAuth.get('/auth/yo', autenticar, async (req, res) => {
+  const usuario = await auth.usuarioActual(req.usuario.id);
+  res.json({ usuario: vistaPublica(usuario) });
+});
+
+// POST /api/auth/logout -> 200 { ok: true } | 401 SESION_INVALIDA   (RF-03)
+// Revoca la sesion del token usado. El cliente, ademas, olvida el token.
+rutasAuth.post('/auth/logout', autenticar, async (req, res) => {
+  await auth.cerrarSesion(req.usuario.jti);
+  res.json({ ok: true });
+});
+
+// POST /api/auth/recuperacion -> 200 SIEMPRE, mismo cuerpo exista o no la cuenta.
+// domain no debe lanzar por "correo inexistente": eso revelaria que la cuenta
+// existe. (Durante el freeze responde 501 como el resto.)
+rutasAuth.post('/auth/recuperacion', async (req, res) => {
+  const datos = validarPedidoRecuperacion(req.body);
+  await auth.pedirRecuperacion(datos);
+  res.json({
+    mensaje: 'Si el correo esta registrado, te enviamos un enlace para recuperar la contrasena.',
+  });
+});
+
+// POST /api/auth/recuperacion/confirmar -> 200 | 400 TOKEN_INVALIDO
+rutasAuth.post('/auth/recuperacion/confirmar', async (req, res) => {
+  const datos = validarConfirmacionRecuperacion(req.body);
+  await auth.confirmarRecuperacion(datos);
+  res.json({ mensaje: 'Tu contrasena fue actualizada. Ya podes iniciar sesion.' });
+});
+
+export default rutasAuth;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
