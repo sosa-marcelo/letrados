@@ -2,7 +2,13 @@
 
 Plataforma web de intercambio y donación de libros. Taller de Ingeniería de Software.
 
-El ciclo 1 entrega el **módulo de autenticación**: registro, inicio y cierre de sesión y recuperación de contraseña.
+Producción: https://letrados-dusky.vercel.app
+
+| Ciclo | Entrega | Requisitos |
+|---|---|---|
+| 1 (v0.1.0) | Módulo 1 · Autenticación: registro, inicio y cierre de sesión, recuperación de contraseña | RF-01 a RF-04 |
+| 2 (v0.2.0) | Módulo 2 · Usuarios y roles: sesiones revocables, perfil propio y público, administración de cuentas, baja | RF-05 a RF-09 |
+| 2 (v0.2.0) | Módulo 3 · Catálogo de libros: alta, modificación, retiro y consulta | RF-10 a RF-13 |
 
 ## Tecnologías
 
@@ -60,7 +66,7 @@ Vite redirige `/api` al backend, así que en desarrollo no hace falta CORS.
 | `npm run servir` | Sirve sin compilar. Solo si ya compilaste antes. |
 | `npm test` | Pruebas de los dos workspaces, con cobertura. |
 | `npm run migrar` | Aplica las migraciones pendientes. Antes de tocar nada avisa a qué base va a aplicar. |
-| `npm run docs` | Genera la documentación del código con JSDoc en `frontend/public/documentacion/`. |
+| `npm run docs` | Genera la documentación del código (JSDoc) y de la API (OpenAPI) en `frontend/public/documentacion/`. |
 
 **`npm run dev` y `npm start` no son lo mismo.** En `dev` el frontend lo sirve
 Vite; en `start` lo sirve Express desde el build, que es el único modo que
@@ -69,9 +75,23 @@ Conviene correr `npm start` antes de dar algo por terminado.
 
 ## Documentación del código
 
-`npm run docs` genera la documentación HTML del backend a partir de los
-comentarios JSDoc. Se publica junto con la aplicación en `/documentacion/index.html`.
-Después de cambiar comentarios, regenerarla y subirla en el mismo PR.
+`npm run docs` genera dos documentos que se publican junto con la aplicación:
+
+- **Código (JSDoc):** `/documentacion/index.html` — las cuatro capas del backend, a partir de los comentarios.
+- **API (OpenAPI 3.1):** `/documentacion/api.html` — todos los endpoints, con cuerpos, respuestas y códigos de error.
+  La fuente es `backend/docs/openapi.yaml`.
+
+Después de cambiar comentarios o endpoints, regenerarla y subirla en el mismo PR.
+
+## Recorrido de demostración (ciclo 2)
+
+Con una cuenta administradora (ver abajo) y una cuenta común de prueba:
+
+1. **Sesiones revocables (RF-02, RF-03).** Entrar con la cuenta común en dos navegadores. Salir en uno: el otro sigue adentro; volver atrás en el primero lleva al login.
+2. **Catálogo (RF-10 a RF-13).** En *Mis libros*, agregar dos libros (probar cantidad 0: el formulario lo rechaza), buscar por parte del título o del autor, editar la cantidad y retirar uno.
+3. **Perfil (RF-05, RF-08).** En *Perfil* se ve el correo (no editable) y *Ver cómo te ven* abre el perfil público, que no lo muestra.
+4. **Administración (RF-06, RF-07).** Con la cuenta común, `/admin/cuentas` no está disponible. Con la administradora, buscar la cuenta común y bloquearla escribiendo su nombre: su sesión abierta se cierra y el login responde «Tu cuenta no está habilitada». Desbloquearla y volver a entrar.
+5. **Baja (RF-09).** Con la cuenta común, *Perfil → Dar de baja*: pide la contraseña y escribir BAJA. Después, su perfil público figura como «Cuenta eliminada» y ya no puede entrar.
 
 ## Crear el primer administrador
 
