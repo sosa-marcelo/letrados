@@ -7,6 +7,9 @@ export default defineConfig({
     // Las pruebas viven en backend/pruebas/, con sufijo .prueba.js, replicando
     // la ruta de lo que prueban (pruebas/data/usuarios.prueba.js).
     include: ['pruebas/**/*.prueba.js'],
+    // Las pruebas HTTP registran e inician sesion con bcrypt real (coste 12,
+    // RNF-01): con varios archivos en paralelo, 5 s por prueba no alcanza.
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       // Se reporta la cobertura de todo src/, pero el umbral solo se exige sobre
