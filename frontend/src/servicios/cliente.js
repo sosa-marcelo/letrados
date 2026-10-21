@@ -27,6 +27,24 @@ import { leerToken } from './token.js'
 
 const BASE = '/api'
 
+/*
+ * Aviso de sesión inválida. Si una llamada que viajó CON token vuelve con
+ * 401 SESION_INVALIDA (sesión revocada, vencida, cuenta bloqueada o dada de
+ * baja), el token ya no sirve en ninguna pantalla. El cliente no sabe de
+ * React ni de rutas: sólo avisa, y el contexto de sesión decide qué hacer
+ * (borrar el token y mandar a /login). Otros 401, como CONTRASENA_INCORRECTA,
+ * no cuentan: ahí la sesión sigue siendo válida.
+ */
+let alSesionInvalida = null
+
+/** Registra quién se entera de un 401 SESION_INVALIDA. Devuelve la baja. */
+export function escucharSesionInvalida(funcion) {
+  alSesionInvalida = funcion
+  return () => {
+    if (alSesionInvalida === funcion) alSesionInvalida = null
+  }
+}
+
 export class ErrorApi extends Error {
   constructor({ codigo, mensaje, detalles, estado }) {
     super(mensaje || 'Ocurrió un error inesperado.')
@@ -117,6 +135,15 @@ export async function solicitar(ruta, opciones = {}) {
 
   if (!respuesta.ok) {
     const error = esJson && datos && typeof datos.error === 'object' ? datos.error : {}
+    if (
+      token &&
+      token === leerToken() &&
+      respuesta.status === 401 &&
+      error.codigo === 'SESION_INVALIDA' &&
+      typeof alSesionInvalida === 'function'
+    ) {
+      alSesionInvalida()
+    }
     throw new ErrorApi({
       codigo: error.codigo || `HTTP_${respuesta.status}`,
       mensaje: error.mensaje || mensajePorEstado(respuesta.status),
@@ -152,7 +179,20 @@ export function actualizar(ruta, cuerpo, opciones) {
   return solicitar(ruta, { ...opciones, metodo: 'PUT', cuerpo })
 }
 
-/** DELETE /api/<ruta> */
-export function eliminar(ruta, opciones) {
+/**
+ * DELETE /api/<ruta>. El cuerpo es opcional: la baja de cuenta lo necesita
+ * para reautenticarse con la contraseña (DELETE /api/perfil { contrasena }).
+ */
+export function eliminar(ruta, opciones = {}) {
   return solicitar(ruta, { ...opciones, metodo: 'DELETE' })
+}
+
+/** Arma el query string de un listado, sin los parámetros vacíos. */
+export function conConsulta(ruta, parametros = {}) {
+  const consulta = new URLSearchParams()
+  for (const [clave, valor] of Object.entries(parametros)) {
+    if (valor !== undefined && valor !== null && valor !== '') consulta.set(clave, String(valor))
+  }
+  const texto = consulta.toString()
+  return texto ? `${ruta}?${texto}` : ruta
 }

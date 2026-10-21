@@ -1,0 +1,25 @@
+.reputacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.reputacion--sin {
+  font-weight: 700;
+}
+
+.reputacion__estrellas {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.reputacion b {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.reputacion__cantidad {
+  opacity: 0.8;
+}

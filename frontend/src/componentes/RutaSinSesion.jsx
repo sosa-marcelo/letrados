@@ -5,7 +5,8 @@ import { useSesion } from '../contexto/Sesion.jsx'
 /*
  * El espejo de RutaProtegida: deja pasar sólo si NO hay sesión. Las pantallas
  * de entrar, crear cuenta y pedir recuperación no tienen sentido con la sesión
- * abierta, así que con usuario redirige a Home.
+ * abierta, así que con usuario redirige a /mis-libros (el catálogo propio, la
+ * primera pantalla con sesión).
  *
  * Mientras la sesión se está resolviendo (cargando === true) no redirige ni
  * muestra nada, por el mismo motivo que RutaProtegida: el token todavía no se
@@ -19,6 +20,6 @@ export default function RutaSinSesion({ children }) {
   const { usuario, cargando } = useSesion()
 
   if (cargando) return <div aria-hidden="true" />
-  if (usuario) return <Navigate to="/" replace />
+  if (usuario) return <Navigate to="/mis-libros" replace />
   return children
 }

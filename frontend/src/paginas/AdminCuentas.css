@@ -1,0 +1,215 @@
+/* /admin/cuentas. Valores de 06-perfil-y-admin. */
+
+.admin__filtros {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  width: 480px;
+  max-width: 100%;
+}
+
+.admin__filtros .buscador {
+  flex: 1 1 auto;
+}
+
+.admin__estado {
+  flex: 0 0 auto;
+}
+
+.admin__select {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radio-campo);
+  border: 2px solid var(--crema);
+  background: var(--tinta);
+  color: var(--crema);
+  font: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.admin__select:focus-visible {
+  outline: 3px solid var(--naranja);
+  outline-offset: 2px;
+}
+
+/* Tabla de papel. Grilla por fila: cuenta · estado · sesiones · alta · acción. */
+.admin__tabla {
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr) 80px 110px minmax(130px, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 15px 22px;
+  border-top: 1px solid var(--linea);
+}
+
+.admin__fila:nth-child(odd):not(.admin__fila--cabecera) {
+  background: var(--crema);
+}
+
+.admin__fila--cabecera {
+  border-top: none;
+  border-bottom: 2px solid var(--tinta);
+  padding-top: 18px;
+  padding-bottom: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gris);
+}
+
+.admin__fila--cabecera + .admin__fila {
+  border-top: none;
+}
+
+.admin__cuenta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin__nombre {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.admin__correo {
+  font-size: 13px;
+  color: var(--gris);
+  overflow-wrap: anywhere;
+}
+
+.admin__fila--eliminada .admin__nombre {
+  color: var(--gris);
+}
+
+.admin__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__fecha {
+  font-size: 13px;
+  color: var(--gris);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__der {
+  text-align: right;
+  justify-self: end;
+}
+
+.admin__nota {
+  font-size: 11px;
+  color: var(--gris);
+}
+
+.admin__sin-accion {
+  color: rgba(20, 20, 20, 0.3);
+  padding-right: 6px;
+}
+
+.admin__etiqueta-movil {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .admin__filtros {
+    width: 100%;
+  }
+}
+
+/* ≤600 px: cada fila es una tarjeta apilada. */
+@media (max-width: 600px) {
+  .admin__tabla {
+    background: none;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .admin__fila--cabecera {
+    display: none;
+  }
+
+  .admin__fila,
+  .admin__fila:nth-child(odd):not(.admin__fila--cabecera) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'cuenta chips'
+      'num num'
+      'fecha fecha'
+      'accion accion';
+    gap: 6px 12px;
+    padding: 16px 18px;
+    background: var(--blanco);
+    border: var(--borde);
+    border-radius: 16px;
+    box-shadow: var(--sombra-dura-movil);
+  }
+
+  .admin__fila--cabecera + .admin__fila {
+    border-top: var(--borde);
+  }
+
+  .admin__cuenta {
+    grid-area: cuenta;
+  }
+
+  .admin__chips {
+    grid-area: chips;
+    justify-content: flex-end;
+    align-self: start;
+  }
+
+  .admin__num {
+    grid-area: num;
+    text-align: left;
+    font-size: 13px;
+    color: var(--gris);
+  }
+
+  .admin__fecha {
+    grid-area: fecha;
+  }
+
+  .admin__accion {
+    grid-area: accion;
+    justify-self: stretch;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 12px;
+    margin-top: 6px;
+    border-top: 1px solid var(--linea);
+  }
+
+  .admin__etiqueta-movil {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin__filtros {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin__select {
+    width: 100%;
+  }
+}

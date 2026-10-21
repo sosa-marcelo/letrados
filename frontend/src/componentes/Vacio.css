@@ -1,0 +1,39 @@
+.vacio {
+  border: 2px dashed rgba(20, 20, 20, 0.35);
+  border-radius: 16px;
+  padding: 38px 24px;
+  text-align: center;
+  background: var(--crema);
+}
+
+.vacio__titulo {
+  margin: 0 0 6px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.vacio__texto {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+
+.vacio__accion {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .vacio {
+    padding: 28px 16px;
+  }
+
+  .vacio__titulo {
+    font-size: 19px;
+  }
+}

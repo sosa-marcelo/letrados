@@ -1,0 +1,180 @@
+/*
+ * Marco de aplicación. Medidas de 01-sistema («Medidas nuevas»):
+ *   barra 64 (56 a 480) · franja 150 (110 a 480) · monta −44 ·
+ *   lienzo 28 (18 a 480) · grilla 18 · lema de franja 46/0.96 (30/0.98 a 480).
+ *
+ * El corte móvil es max-width:480px: las maquetas de 480 px ya muestran el
+ * layout móvil (menú colapsado, franja de 110), a diferencia de las de auth.
+ */
+
+.marco {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--crema);
+}
+
+.marco__saltar {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 60;
+  background: var(--naranja);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.marco__saltar:focus {
+  top: 12px;
+}
+
+.marco__franja {
+  flex: 0 0 auto;
+  min-height: 150px;
+  background: var(--marco-pleno);
+  color: var(--marco-texto);
+  /* 44 px los tapa el papel que monta; 18 quedan de aire. */
+  padding: 26px 28px 62px;
+}
+
+.marco__franja-interior,
+.marco__lienzo-interior {
+  max-width: 1224px;
+  margin: 0 auto;
+}
+
+.marco__franja-interior {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px 28px;
+}
+
+.marco__encabezado {
+  min-width: 0;
+}
+
+.marco__franja .lema,
+.marco__titulo {
+  margin: 0;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 46px;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  max-width: none;
+  overflow-wrap: anywhere;
+}
+
+.marco__sub {
+  margin-top: 8px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+
+.marco__accion {
+  flex: 0 0 auto;
+}
+
+/* La Pastilla del ciclo 1 es de ancho completo; en la franja va a su medida. */
+.marco__accion .pastilla {
+  width: auto;
+  min-height: 48px;
+  padding: 0 26px;
+  font-size: 15px;
+}
+
+.marco__lienzo {
+  flex: 1 0 auto;
+  position: relative;
+  z-index: 1;
+  margin-top: -44px;
+  padding: 0 28px 48px;
+}
+
+.marco__lienzo:focus {
+  outline: none;
+}
+
+.marco__lienzo-interior {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Papel genérico del lienzo: la ficha grande (perfil, tablas, bloques). */
+.papel {
+  background: var(--blanco);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: 16px;
+  box-shadow: var(--sombra-dura);
+  padding: 24px 26px;
+  min-width: 0;
+}
+
+.papel__titulo {
+  margin: 0 0 16px;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 19px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 860px) {
+  .marco__franja-interior {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .marco__franja {
+    min-height: 110px;
+    padding: 18px 18px 58px;
+  }
+
+  .marco__franja .lema,
+  .marco__titulo {
+    font-size: 30px;
+    line-height: 0.98;
+  }
+
+  /* La acción principal pasa a ancho completo, arriba del lienzo. */
+  .marco__accion {
+    flex: 1 1 100%;
+  }
+
+  .marco__accion .pastilla {
+    width: 100%;
+  }
+
+  .marco__lienzo {
+    padding: 0 18px 32px;
+  }
+
+  .marco__lienzo-interior {
+    gap: 14px;
+  }
+
+  .papel {
+    box-shadow: var(--sombra-dura-movil);
+    padding: 20px 18px;
+  }
+}

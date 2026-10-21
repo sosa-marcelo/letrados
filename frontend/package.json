@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"El frontend no lleva pruebas automatizadas en el ciclo 1\" && exit 0"
+    "test": "node --test pruebas/*.test.js"
   },
   "dependencies": {
     "react": "^19.1.0",

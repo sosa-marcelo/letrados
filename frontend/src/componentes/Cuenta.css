@@ -1,0 +1,59 @@
+.cuenta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tinta);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.cuenta:hover .cuenta__nombre {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cuenta:focus-visible {
+  outline: 3px solid var(--complementario, var(--naranja));
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.cuenta__avatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--naranja);
+  color: var(--tinta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.cuenta__datos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.cuenta__nombre {
+  font-weight: 700;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cuenta--eliminada .cuenta__avatar {
+  background: var(--hundido);
+  color: var(--gris);
+}
+
+.cuenta--eliminada .cuenta__nombre {
+  color: var(--gris);
+  font-style: italic;
+}
