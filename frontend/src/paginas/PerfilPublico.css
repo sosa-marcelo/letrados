@@ -1,0 +1,84 @@
+/* /usuarios/:id. Valores de 06-perfil-y-admin. */
+
+.publico__encabezado {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.publico__avatar {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: var(--borde);
+  background: var(--crema);
+  color: var(--tinta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 26px;
+}
+
+.publico__identidad {
+  min-width: 0;
+}
+
+.publico__resumen {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+}
+
+.publico__resumen > span:last-child {
+  opacity: 0.85;
+}
+
+/* Cuenta eliminada: el nombre se apaga y el avatar queda hundido. */
+.publico__encabezado--eliminada .marco__titulo {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.publico__encabezado--eliminada .publico__avatar {
+  background: var(--hundido);
+  color: var(--gris);
+  border-color: rgba(20, 20, 20, 0.4);
+}
+
+.publico__titulo-fantasma {
+  display: inline-block;
+  width: 220px;
+  max-width: 60vw;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.12);
+}
+
+.publico__lienzo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 480px) {
+  .publico__encabezado {
+    gap: 14px;
+  }
+
+  .publico__avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+  }
+
+  .publico__titulo-fantasma {
+    height: 28px;
+  }
+}

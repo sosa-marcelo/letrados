@@ -1,0 +1,102 @@
+/* Botón chico de pastilla. Valores de las maquetas de la aplicación. */
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radio-boton);
+  border: var(--borde);
+  background: transparent;
+  color: var(--tinta);
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 13.5px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.boton:focus-visible {
+  outline: 3px solid var(--complementario, var(--naranja));
+  outline-offset: 2px;
+}
+
+.boton--chico {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.boton--grande {
+  height: 48px;
+  padding: 0 26px;
+  font-size: 15px;
+}
+
+.boton--papel {
+  background: var(--blanco);
+}
+
+.boton--naranja {
+  background: var(--naranja);
+}
+
+.boton--verde {
+  background: var(--verde);
+  color: var(--crema);
+}
+
+.boton--peligro {
+  background: var(--rojo);
+  color: var(--crema);
+}
+
+.boton--peligro-contorno {
+  color: var(--rojo);
+  border-color: var(--rojo);
+  background: transparent;
+}
+
+a.boton:hover {
+  color: inherit;
+}
+
+.boton:disabled {
+  cursor: default;
+  background: transparent;
+  border-color: rgba(20, 20, 20, 0.3);
+  color: rgba(20, 20, 20, 0.4);
+}
+
+/* Cargando: hundido con el aro naranja, como la Pastilla. */
+.boton--cargando:disabled {
+  background: var(--hundido);
+  border-color: var(--tinta);
+  color: var(--gris);
+}
+
+.boton__aro {
+  width: 15px;
+  height: 15px;
+  border: 2.4px solid rgba(20, 20, 20, 0.2);
+  border-top-color: var(--naranja);
+  border-radius: 50%;
+  animation: boton-gira 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes boton-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boton__aro {
+    animation-duration: 2s;
+  }
+}

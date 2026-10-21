@@ -1,0 +1,78 @@
+/* /mis-libros. Valores de 03-catalogo. */
+
+.libro__numeros {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.libro__disponible {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--verde);
+}
+
+.libro__disponible--cero {
+  color: var(--tinta);
+}
+
+.libro__detalle {
+  font-size: 12.5px;
+  color: var(--gris);
+  line-height: 1.3;
+}
+
+.libro__detalle-chico {
+  color: rgba(95, 90, 82, 0.85);
+}
+
+.libro__acciones {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.libro__enlace {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.libro__enlace:hover {
+  color: var(--naranja);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.libro__enlace:focus-visible {
+  outline: 2px solid var(--naranja);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.libro__punto {
+  color: rgba(20, 20, 20, 0.3);
+}
+
+.libro__publicar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.libro__pista {
+  font-size: 11.5px;
+  color: var(--gris);
+}
+
+/* El campo de ejemplares es angosto (140 px), como en la maqueta. */
+.libro__campo-cantidad .campo__input {
+  max-width: 140px;
+}

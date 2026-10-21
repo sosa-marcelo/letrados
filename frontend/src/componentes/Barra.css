@@ -1,0 +1,291 @@
+/* Barra superior. Valores de 01-sistema (Barra · Marco 480 px). */
+
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 64px;
+  flex: 0 0 auto;
+  background: var(--tinta);
+  color: var(--crema);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 28px;
+}
+
+/* En la sección de administración la barra lleva un filete naranja abajo. */
+.barra--admin {
+  border-bottom: 2px solid var(--naranja);
+}
+
+.barra__izq,
+.barra__der {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-width: 0;
+}
+
+.barra__der {
+  gap: 14px;
+}
+
+.barra__marca {
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  color: var(--crema);
+  text-decoration: none;
+}
+
+.barra__nav {
+  display: flex;
+  gap: 22px;
+  font-size: 13.5px;
+}
+
+.barra__enlace {
+  color: rgba(255, 248, 236, 0.75);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  font-size: 13.5px;
+}
+
+.barra__enlace:hover {
+  color: var(--crema);
+}
+
+.barra__enlace--activo {
+  color: var(--crema);
+  border-bottom-color: var(--naranja);
+}
+
+.barra a:focus-visible,
+.barra button:focus-visible {
+  outline: 3px solid var(--naranja);
+  outline-offset: 3px;
+}
+
+.barra__cuenta {
+  position: relative;
+}
+
+.barra__boton-cuenta {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 40px;
+  padding: 0 10px 0 4px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: transparent;
+  color: var(--crema);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.barra__boton-cuenta:hover,
+.barra__boton-cuenta[aria-expanded='true'] {
+  border-color: rgba(255, 248, 236, 0.3);
+}
+
+.barra__avatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--naranja);
+  color: var(--tinta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.barra__nombre {
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barra__menu-cuenta {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 200px;
+  background: var(--crema);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: 12px;
+  box-shadow: 6px 6px 0 var(--tinta);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.barra__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  font-size: 13.5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.barra__item:hover {
+  background: var(--hundido);
+  color: var(--tinta);
+}
+
+.barra .barra__menu-cuenta .barra__item:focus-visible {
+  outline: 3px solid var(--naranja);
+  outline-offset: 0;
+}
+
+.barra__visitante {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.barra__crear {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 2px solid var(--crema);
+  color: var(--crema);
+  text-decoration: none;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.barra__crear:hover {
+  background: var(--naranja);
+  border-color: var(--naranja);
+  color: var(--tinta);
+}
+
+.barra__hamburguesa {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--crema);
+  cursor: pointer;
+}
+
+/* Panel del menú móvil: debajo de la barra, con velo sobre el resto. */
+.barra__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: var(--tinta);
+  color: var(--crema);
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(255, 248, 236, 0.12);
+}
+
+.barra__panel-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.barra__panel-nav .barra__enlace,
+.barra__panel-cuenta,
+.barra__panel-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 18px;
+  border-bottom: 1px solid rgba(255, 248, 236, 0.12);
+  font-size: 14px;
+}
+
+.barra__panel-nav .barra__enlace--activo {
+  border-bottom-color: rgba(255, 248, 236, 0.12);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--naranja);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.barra__panel-cuenta {
+  color: var(--crema);
+  text-decoration: none;
+}
+
+.barra__panel-cuenta .chip {
+  margin-left: auto;
+}
+
+.barra__panel-item {
+  width: 100%;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  background: none;
+  color: var(--crema);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.barra__velo {
+  position: fixed;
+  inset: 0;
+  top: 56px;
+  z-index: 1;
+  background: rgba(20, 20, 20, 0.45);
+}
+
+@media (min-width: 481px) and (max-width: 800px) {
+  .barra { padding-inline: 18px; }
+  .barra__izq { gap: 16px; }
+  .barra__nav { gap: 14px; }
+  .barra__solo-ancho > .chip,
+  .barra__boton-cuenta .barra__nombre { display: none; }
+}
+
+@media (max-width: 480px) {
+  .barra {
+    height: 56px;
+    padding: 0 18px;
+  }
+
+  .barra__nav,
+  .barra__solo-ancho {
+    display: none;
+  }
+
+  .barra__hamburguesa {
+    display: inline-flex;
+  }
+
+  .barra__visitante {
+    gap: 12px;
+  }
+}

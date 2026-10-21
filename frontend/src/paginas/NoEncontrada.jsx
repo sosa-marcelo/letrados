@@ -7,7 +7,7 @@ export default function NoEncontrada() {
       epica="ninguna (parte del andamio)"
       rutas={[
         { a: '/login', texto: 'Iniciar sesión' },
-        { a: '/', texto: 'Home' },
+        { a: '/mis-libros', texto: 'Mis libros' },
       ]}
     />
   )
