@@ -19,7 +19,8 @@
     "start": "npm run build && npm run start --workspace backend",
     "servir": "npm run start --workspace backend",
     "test": "npm run test --workspaces --if-present",
-    "migrar": "npm run migrar --workspace backend"
+    "migrar": "npm run migrar --workspace backend",
+    "docs": "npm run docs --workspace backend"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

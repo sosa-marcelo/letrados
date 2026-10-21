@@ -101,3 +101,61 @@ export function sesionInvalida(
 ) {
   return new ErrorDominio('SESION_INVALIDA', 401, mensaje);
 }
+
+/**
+ * Cuenta bloqueada o dada de baja. Solo se responde a quien ya probo saber la
+ * contrasena (DISENIO-GENERAL §7.4), asi que no revela nada nuevo.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 403 CUENTA_BLOQUEADA
+ */
+export function cuentaBloqueada(
+  mensaje = 'Tu cuenta no esta habilitada. Si crees que es un error, contacta a un administrador.',
+) {
+  return new ErrorDominio('CUENTA_BLOQUEADA', 403, mensaje);
+}
+
+/**
+ * La sesion es valida pero no tiene permiso (rol).
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 403 ACCESO_DENEGADO
+ */
+export function accesoDenegado(
+  mensaje = 'No tenes permiso para realizar esta accion',
+) {
+  return new ErrorDominio('ACCESO_DENEGADO', 403, mensaje);
+}
+
+/**
+ * El recurso no existe, o existe y no corresponde mostrarlo (un recurso
+ * privado ajeno): devolver 403 ahi confirmaria que el id existe.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 404 NO_ENCONTRADO
+ */
+export function noEncontrado(mensaje = 'No encontramos lo que buscabas') {
+  return new ErrorDominio('NO_ENCONTRADO', 404, mensaje);
+}
+
+/**
+ * La operacion no es legal para el estado actual del recurso.
+ *
+ * @param {string} mensaje
+ * @param {Array<{ campo?: string, mensaje: string }>} [detalles]
+ * @returns {ErrorDominio} 409 ESTADO_INVALIDO
+ */
+export function estadoInvalido(mensaje, detalles = []) {
+  return new ErrorDominio('ESTADO_INVALIDO', 409, mensaje, detalles);
+}
+
+/**
+ * Reautenticacion fallida (cambio de contrasena, baja). La sesion ya
+ * identifica a la persona: decirle que campo fallo no protege nada.
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 401 CONTRASENA_INCORRECTA
+ */
+export function contrasenaIncorrecta(mensaje = 'La contrasena no es correcta') {
+  return new ErrorDominio('CONTRASENA_INCORRECTA', 401, mensaje);
+}

@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import jwt from 'jsonwebtoken';
 
-import { firmar, verificar } from '../../src/infra/jwt.js';
+import { firmar as firmarCon, verificar, vencimientoDe } from '../../src/infra/jwt.js';
+
+const JTI = '11111111-2222-4333-8444-555555555555';
+/** Firma con rol y jti fijos: las pruebas de abajo solo miran el id. */
+const firmar = (id) => firmarCon(id, { rol: 'usuario', jti: JTI });
 import { prepararEntorno, limpiarEntorno } from '../apoyo/entorno.js';
 
 beforeAll(() => prepararEntorno());
@@ -10,11 +14,17 @@ afterAll(() => limpiarEntorno());
 describe('jwt', () => {
   it('un token recien firmado devuelve el mismo id', () => {
     const token = firmar('42');
-    expect(verificar(token)).toEqual({ id: '42' });
+    expect(verificar(token)).toEqual({ id: '42', rol: 'usuario', jti: JTI });
   });
 
   it('el id viaja en sub, que es lo que lee el middleware', () => {
     expect(jwt.decode(firmar('42')).sub).toBe('42');
+  });
+
+  it('vencimientoDe devuelve el exp del token como fecha futura', () => {
+    const vence = vencimientoDe(firmar('42'));
+    expect(vence).toBeInstanceOf(Date);
+    expect(vence.getTime()).toBeGreaterThan(Date.now());
   });
 
   it('un token manipulado no pasa', () => {

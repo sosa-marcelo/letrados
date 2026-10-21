@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=../.env --env-file-if-exists=.env src/servidor.js",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js"
+    "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js",
+    "docs": "jsdoc -c jsdoc.json"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.0.0",
+    "jsdoc": "^4.0.5",
     "pg-mem": "^3.0.14",
     "supertest": "^7.2.2",
     "vitest": "^5.0.0"

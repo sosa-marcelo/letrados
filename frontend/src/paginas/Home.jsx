@@ -18,8 +18,8 @@ export default function Home() {
   const primerNombre = nombreCompleto.split(' ')[0]
   const inicial = nombreCompleto.trim().charAt(0).toUpperCase() || '?'
 
-  function alCerrarSesion() {
-    salir()
+  async function alCerrarSesion() {
+    await salir()
     navigate('/login')
   }
 
