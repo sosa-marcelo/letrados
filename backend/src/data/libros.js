@@ -176,3 +176,20 @@ export async function listarLibrosDeUsuario(
 
   return { filas: rows, total: conteo[0].total };
 }
+
+/**
+ * Archiva todos los libros vigentes de un usuario (baja de cuenta, RF-09).
+ * No se borran: los intercambios completados los referencian.
+ *
+ * @param {string | number} usuario_id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<number>} cantidad archivada.
+ */
+export async function archivarLibrosDeUsuario(usuario_id, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE libros SET archivado_en = now()
+      WHERE usuario_id = $1 AND archivado_en IS NULL`,
+    [usuario_id],
+  );
+  return rowCount ?? 0;
+}

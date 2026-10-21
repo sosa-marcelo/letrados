@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import * as libros from '../../domain/libros.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { validarLibro } from '../validacion.js';
+import { validarLibro, esIdValido } from '../validacion.js';
 
 /**
  * Rutas del catalogo propio (modulo 3, RF-10 a RF-13). Todas con sesion: cada
@@ -48,7 +48,7 @@ rutasLibros.delete('/libros/:id', async (req, res) => {
  * @returns {string}
  */
 function idValido(crudo) {
-  if (!/^[1-9]\d{0,17}$/.test(crudo)) {
+  if (!esIdValido(crudo)) {
     throw libros.libroNoEncontrado();
   }
   return crudo;
