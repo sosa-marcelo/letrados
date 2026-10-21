@@ -20,3 +20,7 @@ Thumbs.db
 
 # Documentos de trabajo locales
 /docs/
+
+# Vercel
+.vercel
+.env*.local
