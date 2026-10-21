@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 
 import rutasSalud from './rutas/salud.js';
 import rutasAuth from './rutas/auth.js';
+import rutasLibros from './rutas/libros.js';
 import { rutaNoEncontrada } from './middlewares/rutaNoEncontrada.js';
 import { manejadorErrores } from './middlewares/manejadorErrores.js';
 
@@ -12,7 +13,7 @@ import { manejadorErrores } from './middlewares/manejadorErrores.js';
  *   0. `express.json()` — el parseo vive ACA, no a nivel de app: si estuviera
  *      afuera, un cuerpo mal formado saldria por el manejador por defecto de
  *      Express (HTML y volcado de pila) sin pasar por el nuestro.
- *   1. las rutas (salud, auth).
+ *   1. las rutas (salud, auth, libros).
  *   2. `rutaNoEncontrada` — terminador: un `/api/...` sin match sale 404 JSON,
  *      no se lo come el comodin de la SPA.
  *   3. `manejadorErrores` — formato unico de error. Vive dentro del router para
@@ -24,6 +25,7 @@ api.use(express.json());
 
 api.use(rutasSalud);
 api.use(rutasAuth);
+api.use(rutasLibros);
 
 api.use(rutaNoEncontrada);
 api.use(manejadorErrores);
