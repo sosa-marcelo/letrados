@@ -150,3 +150,56 @@ export function validarConfirmacionRecuperacion(cuerpo = {}) {
   lanzarSiHay(detalles);
   return { token, contrasena };
 }
+
+const LARGO_MAX_TITULO = 200;
+const LARGO_MAX_AUTOR = 200;
+
+/**
+ * Alta y modificacion de un libro (RF-10, RF-11). Los tres campos completos
+ * siempre: la modificacion es reemplazo, no parche.
+ *
+ * - `titulo` y `autor`: obligatorios, hasta 200 caracteres, recortados.
+ * - `cantidad`: entero >= 1. Se acepta `2` o `"2"` (lo que manda un input),
+ *   no `2.5`, `"dos"` ni `0`.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ titulo: string, autor: string, cantidad: number }}
+ */
+export function validarLibro(cuerpo = {}) {
+  const detalles = [];
+  const titulo = typeof cuerpo.titulo === 'string' ? cuerpo.titulo.trim() : '';
+  const autor = typeof cuerpo.autor === 'string' ? cuerpo.autor.trim() : '';
+
+  if (titulo === '') {
+    detalles.push({ campo: 'titulo', mensaje: 'El titulo es obligatorio' });
+  } else if (titulo.length > LARGO_MAX_TITULO) {
+    detalles.push({
+      campo: 'titulo',
+      mensaje: `El titulo no puede superar los ${LARGO_MAX_TITULO} caracteres`,
+    });
+  }
+
+  if (autor === '') {
+    detalles.push({ campo: 'autor', mensaje: 'El autor es obligatorio' });
+  } else if (autor.length > LARGO_MAX_AUTOR) {
+    detalles.push({
+      campo: 'autor',
+      mensaje: `El autor no puede superar los ${LARGO_MAX_AUTOR} caracteres`,
+    });
+  }
+
+  const crudo = cuerpo.cantidad;
+  const esEnteroTexto = typeof crudo === 'string' && /^\s*\d+\s*$/.test(crudo);
+  const cantidad =
+    typeof crudo === 'number' ? crudo : esEnteroTexto ? Number.parseInt(crudo, 10) : NaN;
+
+  if (!Number.isInteger(cantidad) || cantidad < 1) {
+    detalles.push({
+      campo: 'cantidad',
+      mensaje: 'La cantidad debe ser un numero entero mayor o igual a 1',
+    });
+  }
+
+  lanzarSiHay(detalles);
+  return { titulo, autor, cantidad };
+}
