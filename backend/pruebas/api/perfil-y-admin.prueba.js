@@ -258,6 +258,56 @@ describe('bloqueo y desbloqueo (RF-07)', () => {
     expect((await request(app).delete('/api/admin/cuentas/x/bloqueo').set(auth(admin.token))).status).toBe(404);
   });
 
+  it('un admin no puede bloquearse a si mismo -> 409; sigue activa y con sesion', async () => {
+    const admin = await cuenta('admin@ejemplo.com');
+    await hacerAdmin(admin.id);
+
+    const r = await request(app).post(`/api/admin/cuentas/${admin.id}/bloqueo`).set(auth(admin.token));
+    expect(r.status).toBe(409);
+    expect(r.body.error.codigo).toBe('ESTADO_INVALIDO');
+
+    const { rows } = await estado.ejecutar('SELECT estado FROM usuarios WHERE id = $1', [admin.id]);
+    expect(rows[0].estado).toBe('activa');
+    expect((await yo(admin.token)).status).toBe(200);
+  });
+
+  it('un admin no puede desbloquearse a si mismo -> 409', async () => {
+    const admin = await cuenta('admin@ejemplo.com');
+    await hacerAdmin(admin.id);
+
+    const r = await request(app).delete(`/api/admin/cuentas/${admin.id}/bloqueo`).set(auth(admin.token));
+    expect(r.status).toBe(409);
+    expect(r.body.error.codigo).toBe('ESTADO_INVALIDO');
+  });
+
+  it('bloquear una cuenta eliminada -> 409; sigue eliminada', async () => {
+    const admin = await cuenta('admin@ejemplo.com');
+    await hacerAdmin(admin.id);
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    await estado.ejecutar("UPDATE usuarios SET estado = 'eliminada' WHERE id = $1", [ana.id]);
+
+    const r = await request(app).post(`/api/admin/cuentas/${ana.id}/bloqueo`).set(auth(admin.token));
+    expect(r.status).toBe(409);
+    expect(r.body.error.codigo).toBe('ESTADO_INVALIDO');
+
+    const { rows } = await estado.ejecutar('SELECT estado FROM usuarios WHERE id = $1', [ana.id]);
+    expect(rows[0].estado).toBe('eliminada');
+  });
+
+  it('desbloquear una cuenta eliminada -> 409; sigue eliminada', async () => {
+    const admin = await cuenta('admin@ejemplo.com');
+    await hacerAdmin(admin.id);
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    await estado.ejecutar("UPDATE usuarios SET estado = 'eliminada' WHERE id = $1", [ana.id]);
+
+    const r = await request(app).delete(`/api/admin/cuentas/${ana.id}/bloqueo`).set(auth(admin.token));
+    expect(r.status).toBe(409);
+    expect(r.body.error.codigo).toBe('ESTADO_INVALIDO');
+
+    const { rows } = await estado.ejecutar('SELECT estado FROM usuarios WHERE id = $1', [ana.id]);
+    expect(rows[0].estado).toBe('eliminada');
+  });
+
   it('un admin que pierde el rol deja de poder administrar al instante', async () => {
     const admin = await cuenta('admin@ejemplo.com');
     await hacerAdmin(admin.id);

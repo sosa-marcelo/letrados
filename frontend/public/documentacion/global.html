@@ -3426,8 +3426,8 @@ de administrador deja de ejercerlo al instante, no cuando vence su token.</p>
 <div class="description">
     <p>Bloquea una cuenta (RF-07): en una transaccion, <code>estado = 'bloqueada'</code> y se
 revocan todas sus sesiones. El bloqueo no toca los intercambios en curso.</p>
-<p>Las reglas de negocio de LET-72 (no bloquearse a si mismo, no bloquear una
-cuenta eliminada) se agregan en <code>validarCambioDeBloqueo</code>.</p>
+<p>Las reglas de negocio (no bloquearse a si mismo, no bloquear una cuenta
+eliminada) estan en <code>validarCambioDeBloqueo</code>.</p>
 </div>
 
 
@@ -14479,7 +14479,7 @@ la persona.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_admin.js.html">domain/admin.js</a>, <a href="domain_admin.js.html#line134">line 134</a>
+        <a href="domain_admin.js.html">domain/admin.js</a>, <a href="domain_admin.js.html#line147">line 147</a>
     </li></ul></dd>
     
 
@@ -17266,7 +17266,7 @@ corresponde a nadie, la sesion se trata como invalida.</p>
     
 
     
-    <h4 class="name" id="validarCambioDeBloqueo"><span class="type-signature"></span>validarCambioDeBloqueo<span class="signature">(_adminId, _cuenta)</span><span class="type-signature"> &rarr; {void}</span></h4>
+    <h4 class="name" id="validarCambioDeBloqueo"><span class="type-signature"></span>validarCambioDeBloqueo<span class="signature">(adminId, cuenta)</span><span class="type-signature"> &rarr; {void}</span></h4>
     
 
     
@@ -17274,10 +17274,17 @@ corresponde a nadie, la sesion se trata como invalida.</p>
 
 
 <div class="description">
-    <p>Reglas que deciden si una cuenta se puede bloquear o desbloquear.</p>
-<p>TODO(LET-72): un administrador no puede bloquearse a si mismo, y una cuenta
-eliminada no se puede bloquear ni desbloquear. Ambas -&gt; 409 ESTADO_INVALIDO
-(DISENIO-MODULO-2 §4.2).</p>
+    <p>Reglas que deciden si una cuenta se puede bloquear o desbloquear. Las dos
+responden 409 ESTADO_INVALIDO (DISENIO-MODULO-2 §4.2):</p>
+<ul>
+<li>Un administrador no puede bloquearse ni desbloquearse a si mismo: es el
+caso que deja al sistema sin nadie que lo administre.</li>
+<li>Una cuenta eliminada no se puede bloquear ni desbloquear: despues de una
+baja ya no hay acceso que habilitar ni impedir.</li>
+</ul>
+<p>Se llama dentro de la transaccion y antes de escribir: si lanza, no se
+modifica nada. Los ids se comparan como texto porque <code>cuenta.id</code> llega como
+numero o como texto segun el driver.</p>
 </div>
 
 
@@ -17313,7 +17320,7 @@ eliminada no se puede bloquear ni desbloquear. Ambas -&gt; 409 ESTADO_INVALIDO
 
         <tr>
             
-                <td class="name"><code>_adminId</code></td>
+                <td class="name"><code>adminId</code></td>
             
 
             <td class="type">
@@ -17336,7 +17343,7 @@ eliminada no se puede bloquear ni desbloquear. Ambas -&gt; 409 ESTADO_INVALIDO
 
         <tr>
             
-                <td class="name"><code>_cuenta</code></td>
+                <td class="name"><code>cuenta</code></td>
             
 
             <td class="type">
@@ -17393,7 +17400,7 @@ eliminada no se puede bloquear ni desbloquear. Ambas -&gt; 409 ESTADO_INVALIDO
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_admin.js.html">domain/admin.js</a>, <a href="domain_admin.js.html#line131">line 131</a>
+        <a href="domain_admin.js.html">domain/admin.js</a>, <a href="domain_admin.js.html#line137">line 137</a>
     </li></ul></dd>
     
 
