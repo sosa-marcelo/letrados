@@ -229,3 +229,28 @@ export function validarBaja(cuerpo = {}) {
 export function esIdValido(crudo) {
   return typeof crudo === 'string' && /^[1-9]\d{0,17}$/.test(crudo);
 }
+
+/**
+ * Cambio de contrasena desde el perfil (RF-05). La actual solo tiene que
+ * venir; la nueva sigue las reglas del registro.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ contrasenaActual: string, contrasenaNueva: string }}
+ */
+export function validarCambioContrasena(cuerpo = {}) {
+  const detalles = [];
+  const contrasenaActual = typeof cuerpo.contrasenaActual === 'string' ? cuerpo.contrasenaActual : '';
+  const contrasenaNueva = typeof cuerpo.contrasenaNueva === 'string' ? cuerpo.contrasenaNueva : '';
+
+  if (contrasenaActual === '') {
+    detalles.push({ campo: 'contrasenaActual', mensaje: 'La contrasena actual es obligatoria' });
+  }
+
+  const deLaNueva = [];
+  revisarContrasenaNueva(contrasenaNueva, deLaNueva);
+  // Las reglas anotan 'contrasena'; aca el campo se llama contrasenaNueva.
+  for (const d of deLaNueva) detalles.push({ ...d, campo: 'contrasenaNueva' });
+
+  lanzarSiHay(detalles);
+  return { contrasenaActual, contrasenaNueva };
+}
