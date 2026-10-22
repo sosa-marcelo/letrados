@@ -6,9 +6,11 @@ import {
   buscarHashDeUsuario,
   bloquearFilaUsuario,
   anonimizarUsuario,
+  actualizarNombre,
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
+import { validarNombrePerfil } from '../api/validacion.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
@@ -133,4 +135,18 @@ export async function darDeBaja(usuarioId, { contrasena }, { ejecutar } = {}) {
     },
     { ejecutar },
   );
+}
+
+/**
+ * Modifica el nombre del perfil propio (RF-05) y devuelve el perfil
+ * actualizado, con la misma forma que verPerfil.
+ *
+ * @param {string} usuarioId
+ * @param {{ nombre: string }} datos - ya validados por la API.
+ * @param {{ ejecutar?: Function }} [opciones]
+ */
+export async function modificarNombre(usuarioId, { nombre }, { ejecutar } = {}) {
+  const existe = await actualizarNombre(usuarioId, nombre, ejecutar);
+  if (!existe) throw sesionInvalida();
+  return verPerfil(usuarioId, { ejecutar });
 }

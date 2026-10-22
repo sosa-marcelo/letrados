@@ -399,7 +399,7 @@ el hash real y el tiempo volveria a delatar cuentas.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="data_usuarios.js.html">data/usuarios.js</a>, <a href="data_usuarios.js.html#line229">line 229</a>
+        <a href="data_usuarios.js.html">data/usuarios.js</a>, <a href="data_usuarios.js.html#line245">line 245</a>
     </li></ul></dd>
     
 
@@ -523,7 +523,7 @@ el hash real y el tiempo volveria a delatar cuentas.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line22">line 22</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line24">line 24</a>
     </li></ul></dd>
     
 
@@ -1302,7 +1302,7 @@ persona solo ve y toca su propio catalogo. Un libro ajeno responde 404, no
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="api_rutas_perfil.js.html">api/rutas/perfil.js</a>, <a href="api_rutas_perfil.js.html#line12">line 12</a>
+        <a href="api_rutas_perfil.js.html">api/rutas/perfil.js</a>, <a href="api_rutas_perfil.js.html#line13">line 13</a>
     </li></ul></dd>
     
 
@@ -2454,6 +2454,242 @@ el modulo 3 solo la lee.</p>
     <dd>
         
 <span class="param-type">Promise.&lt;<a href="global.html#FilaLibro">FilaLibro</a>></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="actualizarNombre"><span class="type-signature"></span>actualizarNombre<span class="signature">(id, nombre, ejecutar<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;boolean>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Cambia el nombre de un usuario. Solo el nombre: el correo no se toca.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>nombre</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>ejecutar</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="global.html#Ejecutor">Ejecutor</a></span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="data_usuarios.js.html">data/usuarios.js</a>, <a href="data_usuarios.js.html#line236">line 236</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>si encontro la fila.</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;boolean></span>
 
 
     </dd>
@@ -7532,7 +7768,7 @@ las valoraciones de terceros. El correo original no se libera.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line120">line 120</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line122">line 122</a>
     </li></ul></dd>
     
 
@@ -8912,7 +9148,7 @@ un texto cualquiera fallaria como 500.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line229">line 229</a>
+        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line253">line 253</a>
     </li></ul></dd>
     
 
@@ -13259,6 +13495,218 @@ reservados, y el mensaje dice cual es el minimo.</p>
     
 
     
+    <h4 class="name" id="modificarNombre"><span class="type-signature"></span>modificarNombre<span class="signature">(usuarioId, datos, opciones<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Modifica el nombre del perfil propio (RF-05) y devuelve el perfil
+actualizado, con la misma forma que verPerfil.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>usuarioId</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>datos</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">*</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>ya validados por la API.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>opciones</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">*</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line148">line 148</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
     <h4 class="name" id="noEncontrado"><span class="type-signature"></span>noEncontrado<span class="signature">(mensaje<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {<a href="ErrorDominio.html">ErrorDominio</a>}</span></h4>
     
 
@@ -14373,7 +14821,7 @@ la persona.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line75">line 75</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line77">line 77</a>
     </li></ul></dd>
     
 
@@ -15203,7 +15651,7 @@ la pantalla muestra «Sin valoraciones».</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line36">line 36</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line38">line 38</a>
     </li></ul></dd>
     
 
@@ -17212,7 +17660,7 @@ corresponde a nadie, la sesion se trata como invalida.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line213">line 213</a>
+        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line237">line 237</a>
     </li></ul></dd>
     
 
@@ -17705,7 +18153,7 @@ no <code>2.5</code>, <code>&quot;dos&quot;</code> ni <code>0</code>.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line168">line 168</a>
+        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line192">line 192</a>
     </li></ul></dd>
     
 
@@ -17857,6 +18305,162 @@ no <code>2.5</code>, <code>&quot;dos&quot;</code> ni <code>0</code>.</li>
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line102">line 102</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">*</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="validarNombrePerfil"><span class="type-signature"></span>validarNombrePerfil<span class="signature">(cuerpo)</span><span class="type-signature"> &rarr; {*}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Modificacion del nombre (RF-05). Mismas reglas que el registro:
+obligatorio, recortado, hasta 80 caracteres. Otros campos se ignoran.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>cuerpo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="api_validacion.js.html">api/validacion.js</a>, <a href="api_validacion.js.html#line161">line 161</a>
     </li></ul></dd>
     
 
@@ -18514,7 +19118,7 @@ solo para su dueño.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line48">line 48</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line50">line 50</a>
     </li></ul></dd>
     
 
@@ -21247,7 +21851,7 @@ y aca no se atrapa: quien llame decide que hacer.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line24">line 24</a>
+        <a href="domain_perfil.js.html">domain/perfil.js</a>, <a href="domain_perfil.js.html#line26">line 26</a>
     </li></ul></dd>
     
 
@@ -21345,7 +21949,7 @@ y aca no se atrapa: quien llame decide que hacer.</p>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#HASH_INUTILIZABLE">HASH_INUTILIZABLE</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#NOMBRE_CUENTA_ELIMINADA">NOMBRE_CUENTA_ELIMINADA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#POR_PAGINA_MAX">POR_PAGINA_MAX</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#actualizarEstadoCuenta">actualizarEstadoCuenta</a></li><li><a href="global.html#actualizarLibro">actualizarLibro</a></li><li><a href="global.html#agregarLibro">agregarLibro</a></li><li><a href="global.html#anonimizarUsuario">anonimizarUsuario</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#archivarLibro">archivarLibro</a></li><li><a href="global.html#archivarLibrosDeUsuario">archivarLibrosDeUsuario</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#bloquearCuenta">bloquearCuenta</a></li><li><a href="global.html#bloquearFilaUsuario">bloquearFilaUsuario</a></li><li><a href="global.html#bloquearLibroPropio">bloquearLibroPropio</a></li><li><a href="global.html#borrarLibro">borrarLibro</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarHashDeUsuario">buscarHashDeUsuario</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contarEstorbosDeRetiro">contarEstorbosDeRetiro</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#darDeBaja">darDeBaja</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#desbloquearCuenta">desbloquearCuenta</a></li><li><a href="global.html#disponiblesDe">disponiblesDe</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esIdValido">esIdValido</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#idValido">idValido</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarLibro">insertarLibro</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#libroNoEncontrado">libroNoEncontrado</a></li><li><a href="global.html#listarCuentas">listarCuentas</a></li><li><a href="global.html#listarLibros">listarLibros</a></li><li><a href="global.html#listarLibrosDeUsuario">listarLibrosDeUsuario</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#modificarLibro">modificarLibro</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#perfilPublico">perfilPublico</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#recortar">recortar</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#reputacionDe">reputacionDe</a></li><li><a href="global.html#retirarLibro">retirarLibro</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAdmin">rutasAdmin</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasLibros">rutasLibros</a></li><li><a href="global.html#rutasPerfil">rutasPerfil</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#sesionOpcional">sesionOpcional</a></li><li><a href="global.html#tieneIntercambiosCompletados">tieneIntercambiosCompletados</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarBaja">validarBaja</a></li><li><a href="global.html#validarCambioDeBloqueo">validarCambioDeBloqueo</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLibro">validarLibro</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verPerfil">verPerfil</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaCuenta">vistaCuenta</a></li><li><a href="global.html#vistaLibro">vistaLibro</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#HASH_INUTILIZABLE">HASH_INUTILIZABLE</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#NOMBRE_CUENTA_ELIMINADA">NOMBRE_CUENTA_ELIMINADA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#POR_PAGINA_MAX">POR_PAGINA_MAX</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#actualizarEstadoCuenta">actualizarEstadoCuenta</a></li><li><a href="global.html#actualizarLibro">actualizarLibro</a></li><li><a href="global.html#actualizarNombre">actualizarNombre</a></li><li><a href="global.html#agregarLibro">agregarLibro</a></li><li><a href="global.html#anonimizarUsuario">anonimizarUsuario</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#archivarLibro">archivarLibro</a></li><li><a href="global.html#archivarLibrosDeUsuario">archivarLibrosDeUsuario</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#bloquearCuenta">bloquearCuenta</a></li><li><a href="global.html#bloquearFilaUsuario">bloquearFilaUsuario</a></li><li><a href="global.html#bloquearLibroPropio">bloquearLibroPropio</a></li><li><a href="global.html#borrarLibro">borrarLibro</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarHashDeUsuario">buscarHashDeUsuario</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contarEstorbosDeRetiro">contarEstorbosDeRetiro</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#darDeBaja">darDeBaja</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#desbloquearCuenta">desbloquearCuenta</a></li><li><a href="global.html#disponiblesDe">disponiblesDe</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esIdValido">esIdValido</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#idValido">idValido</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarLibro">insertarLibro</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#libroNoEncontrado">libroNoEncontrado</a></li><li><a href="global.html#listarCuentas">listarCuentas</a></li><li><a href="global.html#listarLibros">listarLibros</a></li><li><a href="global.html#listarLibrosDeUsuario">listarLibrosDeUsuario</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#modificarLibro">modificarLibro</a></li><li><a href="global.html#modificarNombre">modificarNombre</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#perfilPublico">perfilPublico</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#recortar">recortar</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#reputacionDe">reputacionDe</a></li><li><a href="global.html#retirarLibro">retirarLibro</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAdmin">rutasAdmin</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasLibros">rutasLibros</a></li><li><a href="global.html#rutasPerfil">rutasPerfil</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#sesionOpcional">sesionOpcional</a></li><li><a href="global.html#tieneIntercambiosCompletados">tieneIntercambiosCompletados</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarBaja">validarBaja</a></li><li><a href="global.html#validarCambioDeBloqueo">validarCambioDeBloqueo</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLibro">validarLibro</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarNombrePerfil">validarNombrePerfil</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verPerfil">verPerfil</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaCuenta">vistaCuenta</a></li><li><a href="global.html#vistaLibro">vistaLibro</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
 </nav>
 
 <br class="clear">
