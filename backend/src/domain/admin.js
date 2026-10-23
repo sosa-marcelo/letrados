@@ -1,4 +1,4 @@
-import { noEncontrado } from './errores.js';
+import { noEncontrado, estadoInvalido } from './errores.js';
 import { enTransaccion } from '../infra/transaccion.js';
 import {
   listarCuentas as listarCuentasDatos,
@@ -71,8 +71,8 @@ export async function listarCuentas({ q, estado, pagina, porPagina } = {}, { eje
  * Bloquea una cuenta (RF-07): en una transaccion, `estado = 'bloqueada'` y se
  * revocan todas sus sesiones. El bloqueo no toca los intercambios en curso.
  *
- * Las reglas de negocio de LET-72 (no bloquearse a si mismo, no bloquear una
- * cuenta eliminada) se agregan en `validarCambioDeBloqueo`.
+ * Las reglas de negocio (no bloquearse a si mismo, no bloquear una cuenta
+ * eliminada) estan en `validarCambioDeBloqueo`.
  *
  * @param {string} adminId - quien bloquea.
  * @param {string} cuentaId
@@ -118,17 +118,30 @@ export async function desbloquearCuenta(adminId, cuentaId, { ejecutar } = {}) {
 }
 
 /**
- * Reglas que deciden si una cuenta se puede bloquear o desbloquear.
+ * Reglas que deciden si una cuenta se puede bloquear o desbloquear. Las dos
+ * responden 409 ESTADO_INVALIDO (DISENIO-MODULO-2 §4.2):
  *
- * TODO(LET-72): un administrador no puede bloquearse a si mismo, y una cuenta
- * eliminada no se puede bloquear ni desbloquear. Ambas -> 409 ESTADO_INVALIDO
- * (DISENIO-MODULO-2 §4.2).
+ * - Un administrador no puede bloquearse ni desbloquearse a si mismo: es el
+ *   caso que deja al sistema sin nadie que lo administre.
+ * - Una cuenta eliminada no se puede bloquear ni desbloquear: despues de una
+ *   baja ya no hay acceso que habilitar ni impedir.
  *
- * @param {string} _adminId
- * @param {import('../data/usuarios.js').FilaUsuario} _cuenta
+ * Se llama dentro de la transaccion y antes de escribir: si lanza, no se
+ * modifica nada. Los ids se comparan como texto porque `cuenta.id` llega como
+ * numero o como texto segun el driver.
+ *
+ * @param {string} adminId
+ * @param {import('../data/usuarios.js').FilaUsuario} cuenta
  * @returns {void}
  */
-export function validarCambioDeBloqueo(_adminId, _cuenta) {}
+export function validarCambioDeBloqueo(adminId, cuenta) {
+  if (String(cuenta.id) === String(adminId)) {
+    throw estadoInvalido('No podes bloquear ni desbloquear tu propia cuenta');
+  }
+  if (cuenta.estado === 'eliminada') {
+    throw estadoInvalido('Una cuenta eliminada no se puede bloquear ni desbloquear');
+  }
+}
 
 /** Entero dentro de [min, max]; si no es un numero, el valor por defecto. */
 function recortar(valor, min, max, defecto) {

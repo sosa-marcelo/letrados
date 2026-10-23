@@ -3,11 +3,10 @@ import { Router } from 'express';
 import * as perfil from '../../domain/perfil.js';
 import { noEncontrado } from '../../domain/errores.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { validarBaja, esIdValido, validarCambioContrasena } from '../validacion.js';
+import { validarBaja, esIdValido, validarNombrePerfil, validarCambioContrasena } from '../validacion.js';
 
 /**
  * Perfil propio (RF-05), perfil publico (RF-08) y baja de cuenta (RF-09).
- * `PUT /api/perfil` lo suma LET-65.
  */
 const rutasPerfil = Router();
 
@@ -27,6 +26,12 @@ rutasPerfil.delete('/perfil', autenticar, async (req, res) => {
 rutasPerfil.get('/usuarios/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) throw noEncontrado('No encontramos esa cuenta');
   res.json({ usuario: await perfil.perfilPublico(req.params.id) });
+});
+
+// PUT /api/perfil { nombre } -> 200 { perfil } | 400 DATOS_INVALIDOS | 401   (RF-05)
+rutasPerfil.put('/perfil', autenticar, async (req, res) => {
+  const datos = validarNombrePerfil(req.body);
+  res.json({ perfil: await perfil.modificarNombre(req.usuario.id, datos) });
 });
 
 // PUT /api/perfil/contrasena { contrasenaActual, contrasenaNueva } -> 200 { ok: true } | 400 | 401 CONTRASENA_INCORRECTA | 401 SESION_INVALIDA   (RF-05)
