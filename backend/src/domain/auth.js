@@ -13,7 +13,8 @@ import { nuevoJti } from '../infra/sesiones.js';
 import { enviarCorreo } from '../infra/correo.js';
 import { obtenerConfig } from '../infra/config.js';
 import { registrador } from '../infra/registrador.js';
-import { insertarSesion, revocarSesion } from '../data/sesiones.js';
+import { enTransaccion } from '../infra/transaccion.js';
+import { insertarSesion, revocarSesion, revocarSesionesDeUsuario } from '../data/sesiones.js';
 import {
   insertarUsuario,
   buscarUsuarioPorEmail,
@@ -255,12 +256,15 @@ export async function pedirRecuperacion({ email }, { ejecutar, enviar = enviarCo
  * contrasena. Token inexistente, vencido o ya usado dan el mismo error
  * (`TOKEN_INVALIDO`), sin distinguir cual fue.
  *
- * El sellado del token (`marcarTokenUsado`) va ANTES de cambiar la
- * contrasena. Al reves, dos peticiones simultaneas con el mismo enlace
- * cambiarian la contrasena dos veces; sellando primero, si el cambio falla
- * despues, el enlace queda quemado y la persona pide otro (peor para ella,
- * pero seguro). `marcarTokenUsado` devuelve `null` si el token ya estaba
- * usado: esa `null` es la proteccion contra dos peticiones a la vez.
+ * Todo va en una sola transaccion: sellar el token, cambiar la contrasena,
+ * invalidar los otros enlaces pendientes y revocar TODAS las sesiones de la
+ * cuenta (RF-04: quien tuviera la sesion abierta queda afuera en ese mismo
+ * momento). Si cualquier paso falla, no cambia nada y el enlace sigue sirviendo.
+ *
+ * El sellado (`marcarTokenUsado`) va primero: devuelve `null` si el token ya
+ * estaba usado, y esa `null` es la proteccion contra dos peticiones a la vez
+ * con el mismo enlace. bcrypt se calcula antes de abrir la transaccion para no
+ * tener la base esperando.
  *
  * No inicia sesion ni devuelve nada: el frontend lleva al login.
  *
@@ -269,14 +273,21 @@ export async function pedirRecuperacion({ email }, { ejecutar, enviar = enviarCo
  * @returns {Promise<void>}
  */
 export async function confirmarRecuperacion({ token, contrasena }, { ejecutar } = {}) {
-  const fila = await buscarTokenVigentePorHash(hashDeToken(token), ejecutar);
-  if (!fila) throw tokenInvalido();
+  const contrasena_hash = await hashear(contrasena);
 
-  // Sellar antes de cambiar nada: si dos peticiones llegan con el mismo
-  // enlace, solo una recibe la fila y la otra queda afuera.
-  const usado = await marcarTokenUsado(fila.id, ejecutar);
-  if (!usado) throw tokenInvalido();
+  await enTransaccion(
+    async (tx) => {
+      const fila = await buscarTokenVigentePorHash(hashDeToken(token), tx);
+      if (!fila) throw tokenInvalido();
 
-  await actualizarContrasena(fila.usuario_id, await hashear(contrasena), ejecutar);
-  await invalidarTokensPendientesDeUsuario(fila.usuario_id, ejecutar);
+      const usado = await marcarTokenUsado(fila.id, tx);
+      if (!usado) throw tokenInvalido();
+
+      await actualizarContrasena(fila.usuario_id, contrasena_hash, tx);
+      await invalidarTokensPendientesDeUsuario(fila.usuario_id, tx);
+      // RF-04: se cierran todas, tambien la de quien pidio la recuperacion.
+      await revocarSesionesDeUsuario(fila.usuario_id, {}, tx);
+    },
+    { ejecutar },
+  );
 }
