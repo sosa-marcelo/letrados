@@ -1,0 +1,37 @@
+# Corre las pruebas de backend y frontend en cada Pull Request (y push) hacia
+# develop o main.
+# No necesita secretos: las pruebas usan una base en memoria (pg-mem) y su
+# propio entorno (backend/pruebas/apoyo/entorno.js), nunca Neon.
+name: Pruebas
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: Pruebas y compilacion
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas (backend con cobertura + frontend)
+        run: npm test
+
+      - name: Compilar el frontend
+        run: npm run build
