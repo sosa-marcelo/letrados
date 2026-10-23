@@ -5,7 +5,6 @@ import { noEncontrado } from '../../domain/errores.js';
 import { autenticar } from '../middlewares/autenticar.js';
 import { validarBaja, esIdValido, validarNombrePerfil } from '../validacion.js';
 
-
 /**
  * Perfil propio (RF-05), perfil publico (RF-08) y baja de cuenta (RF-09).
  * `PUT /api/perfil` y `PUT /api/perfil/contrasena` los suman LET-65 y LET-66.

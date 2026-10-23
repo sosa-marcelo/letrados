@@ -10,7 +10,6 @@ import {
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
-import { validarNombrePerfil } from '../api/validacion.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
