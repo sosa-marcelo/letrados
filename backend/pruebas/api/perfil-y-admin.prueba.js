@@ -316,3 +316,49 @@ describe('bloqueo y desbloqueo (RF-07)', () => {
     expect((await request(app).get('/api/admin/cuentas').set(auth(admin.token))).status).toBe(403);
   });
 });
+
+describe('PUT /api/perfil (RF-05)', () => {
+  it('cambia el nombre (recortado) -> 200, y se ve en GET /perfil y GET /usuarios/:id', async () => {
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    const r = await request(app).put('/api/perfil').set(auth(ana.token)).send({ nombre: '  Ana Perez  ' });
+    expect(r.status).toBe(200);
+    expect(r.body.perfil).toMatchObject({ id: ana.id, nombre: 'Ana Perez', email: 'ana@ejemplo.com' });
+    expect((await request(app).get('/api/perfil').set(auth(ana.token))).body.perfil.nombre).toBe('Ana Perez');
+    expect((await request(app).get(`/api/usuarios/${ana.id}`)).body.usuario.nombre).toBe('Ana Perez');
+  });
+
+  it('sin nombre o solo espacios -> 400 con detalle en el campo nombre', async () => {
+    const ana = await cuenta('ana@ejemplo.com');
+    for (const nombre of ['', '   ']) {
+      const r = await request(app).put('/api/perfil').set(auth(ana.token)).send({ nombre });
+      expect(r.status).toBe(400);
+      expect(r.body.error.codigo).toBe('DATOS_INVALIDOS');
+      expect(r.body.error.detalles[0].campo).toBe('nombre');
+    }
+  });
+
+  it('80 caracteres -> 200; 81 -> 400', async () => {
+    const ana = await cuenta('ana@ejemplo.com');
+    const justo = await request(app).put('/api/perfil').set(auth(ana.token)).send({ nombre: 'a'.repeat(80) });
+    expect(justo.status).toBe(200);
+    const pasado = await request(app).put('/api/perfil').set(auth(ana.token)).send({ nombre: 'a'.repeat(81) });
+    expect(pasado.status).toBe(400);
+    expect(pasado.body.error.detalles[0].campo).toBe('nombre');
+  });
+
+  it('sin sesion -> 401', async () => {
+    expect((await request(app).put('/api/perfil')).status).toBe(401);
+  });
+
+  it('el correo no cambia aunque el cuerpo lo traiga', async () => {
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    const r = await request(app)
+      .put('/api/perfil')
+      .set(auth(ana.token))
+      .send({ nombre: 'Ana Perez', email: 'nueva@ejemplo.com' });
+    expect(r.status).toBe(200);
+    expect(r.body.perfil).toMatchObject({ email: 'ana@ejemplo.com' });
+    const { rows: [fila] } = await estado.ejecutar('SELECT email FROM usuarios WHERE id = $1', [ana.id]);
+    expect(fila.email).toBe('ana@ejemplo.com');
+  });
+});

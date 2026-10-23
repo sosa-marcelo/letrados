@@ -151,6 +151,30 @@ export function validarConfirmacionRecuperacion(cuerpo = {}) {
   return { token, contrasena };
 }
 
+/**
+ * Modificacion del nombre (RF-05). Mismas reglas que el registro:
+ * obligatorio, recortado, hasta 80 caracteres. Otros campos se ignoran.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ nombre: string }}
+ */
+export function validarNombrePerfil(cuerpo = {}) {
+  const detalles = [];
+  const nombre = typeof cuerpo.nombre === 'string' ? cuerpo.nombre.trim() : '';
+
+  if (nombre === '') {
+    detalles.push({ campo: 'nombre', mensaje: 'El nombre es obligatorio' });
+  } else if (nombre.length > LARGO_MAX_NOMBRE) {
+    detalles.push({
+      campo: 'nombre',
+      mensaje: `El nombre no puede superar los ${LARGO_MAX_NOMBRE} caracteres`,
+    });
+  }
+
+  lanzarSiHay(detalles);
+  return { nombre };
+}
+
 const LARGO_MAX_TITULO = 200;
 const LARGO_MAX_AUTOR = 200;
 
