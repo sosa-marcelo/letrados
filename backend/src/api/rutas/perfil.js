@@ -3,11 +3,10 @@ import { Router } from 'express';
 import * as perfil from '../../domain/perfil.js';
 import { noEncontrado } from '../../domain/errores.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { validarBaja, esIdValido, validarNombrePerfil } from '../validacion.js';
+import { validarBaja, esIdValido, validarNombrePerfil, validarCambioContrasena } from '../validacion.js';
 
 /**
  * Perfil propio (RF-05), perfil publico (RF-08) y baja de cuenta (RF-09).
- * `PUT /api/perfil` y `PUT /api/perfil/contrasena` los suman LET-65 y LET-66.
  */
 const rutasPerfil = Router();
 
@@ -33,6 +32,13 @@ rutasPerfil.get('/usuarios/:id', async (req, res) => {
 rutasPerfil.put('/perfil', autenticar, async (req, res) => {
   const datos = validarNombrePerfil(req.body);
   res.json({ perfil: await perfil.modificarNombre(req.usuario.id, datos) });
+});
+
+// PUT /api/perfil/contrasena { contrasenaActual, contrasenaNueva } -> 200 { ok: true } | 400 | 401 CONTRASENA_INCORRECTA | 401 SESION_INVALIDA   (RF-05)
+rutasPerfil.put('/perfil/contrasena', autenticar, async (req, res) => {
+  const datos = validarCambioContrasena(req.body);
+  await perfil.cambiarContrasena(req.usuario, datos);
+  res.json({ ok: true });
 });
 
 export default rutasPerfil;

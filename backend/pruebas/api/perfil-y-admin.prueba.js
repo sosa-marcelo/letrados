@@ -362,3 +362,83 @@ describe('PUT /api/perfil (RF-05)', () => {
     expect(fila.email).toBe('ana@ejemplo.com');
   });
 });
+
+describe('PUT /api/perfil/contrasena (RF-05)', () => {
+  it('cambia la contrasena, permite loguear con la nueva y ya no con la vieja', async () => {
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .set(auth(ana.token))
+      .send({ contrasenaActual: CONTRASENA, contrasenaNueva: 'otraclave2' });
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ ok: true });
+
+    const conLaNueva = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana@ejemplo.com', contrasena: 'otraclave2' });
+    expect(conLaNueva.status).toBe(200);
+
+    const conLaVieja = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana@ejemplo.com', contrasena: CONTRASENA });
+    expect(conLaVieja.status).toBe(401);
+  });
+
+  it('revoca las demas sesiones pero deja viva la sesion actual', async () => {
+    const ana = await cuenta('ana@ejemplo.com', 'Ana Diaz');
+    const otraSesion = (
+      await request(app).post('/api/auth/login').send({ email: 'ana@ejemplo.com', contrasena: CONTRASENA })
+    ).body.token;
+
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .set(auth(ana.token))
+      .send({ contrasenaActual: CONTRASENA, contrasenaNueva: 'otraclave2' });
+    expect(r.status).toBe(200);
+
+    expect((await yo(ana.token)).status).toBe(200);
+    expect((await yo(otraSesion)).status).toBe(401);
+  });
+
+  it('contrasena actual incorrecta -> 401 CONTRASENA_INCORRECTA y no cambia nada', async () => {
+    const ana = await cuenta('ana@ejemplo.com');
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .set(auth(ana.token))
+      .send({ contrasenaActual: 'otra1234', contrasenaNueva: 'otraclave2' });
+    expect(r.status).toBe(401);
+    expect(r.body.error.codigo).toBe('CONTRASENA_INCORRECTA');
+
+    const sigueConLaVieja = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana@ejemplo.com', contrasena: CONTRASENA });
+    expect(sigueConLaVieja.status).toBe(200);
+  });
+
+  it('contrasena nueva invalida -> 400 con el detalle en contrasenaNueva', async () => {
+    const ana = await cuenta('ana@ejemplo.com');
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .set(auth(ana.token))
+      .send({ contrasenaActual: CONTRASENA, contrasenaNueva: 'corta1' });
+    expect(r.status).toBe(400);
+    expect(r.body.error.detalles[0].campo).toBe('contrasenaNueva');
+  });
+
+  it('sin contrasena actual -> 400 con el detalle en contrasenaActual', async () => {
+    const ana = await cuenta('ana@ejemplo.com');
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .set(auth(ana.token))
+      .send({ contrasenaNueva: 'otraclave2' });
+    expect(r.status).toBe(400);
+    expect(r.body.error.detalles[0].campo).toBe('contrasenaActual');
+  });
+
+  it('sin sesion -> 401', async () => {
+    const r = await request(app)
+      .put('/api/perfil/contrasena')
+      .send({ contrasenaActual: CONTRASENA, contrasenaNueva: 'otraclave2' });
+    expect(r.status).toBe(401);
+  });
+});
