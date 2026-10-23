@@ -20,9 +20,10 @@ vi.mock('../../src/infra/bd.js', () => ({
   obtenerPool: () => {
     throw new Error('no se usa en pruebas');
   },
-  obtenerCliente: () => {
-    throw new Error('no se usa en pruebas');
-  },
+  obtenerCliente: async () => ({
+    query: (sql, parametros) => estado.ejecutar(sql, parametros),
+    release: () => {},
+  }),
   cerrarPool: async () => {},
 }));
 
