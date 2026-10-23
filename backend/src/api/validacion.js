@@ -151,6 +151,30 @@ export function validarConfirmacionRecuperacion(cuerpo = {}) {
   return { token, contrasena };
 }
 
+/**
+ * Modificacion del nombre (RF-05). Mismas reglas que el registro:
+ * obligatorio, recortado, hasta 80 caracteres. Otros campos se ignoran.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ nombre: string }}
+ */
+export function validarNombrePerfil(cuerpo = {}) {
+  const detalles = [];
+  const nombre = typeof cuerpo.nombre === 'string' ? cuerpo.nombre.trim() : '';
+
+  if (nombre === '') {
+    detalles.push({ campo: 'nombre', mensaje: 'El nombre es obligatorio' });
+  } else if (nombre.length > LARGO_MAX_NOMBRE) {
+    detalles.push({
+      campo: 'nombre',
+      mensaje: `El nombre no puede superar los ${LARGO_MAX_NOMBRE} caracteres`,
+    });
+  }
+
+  lanzarSiHay(detalles);
+  return { nombre };
+}
+
 const LARGO_MAX_TITULO = 200;
 const LARGO_MAX_AUTOR = 200;
 
@@ -228,4 +252,29 @@ export function validarBaja(cuerpo = {}) {
  */
 export function esIdValido(crudo) {
   return typeof crudo === 'string' && /^[1-9]\d{0,17}$/.test(crudo);
+}
+
+/**
+ * Cambio de contrasena desde el perfil (RF-05). La actual solo tiene que
+ * venir; la nueva sigue las reglas del registro.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ contrasenaActual: string, contrasenaNueva: string }}
+ */
+export function validarCambioContrasena(cuerpo = {}) {
+  const detalles = [];
+  const contrasenaActual = typeof cuerpo.contrasenaActual === 'string' ? cuerpo.contrasenaActual : '';
+  const contrasenaNueva = typeof cuerpo.contrasenaNueva === 'string' ? cuerpo.contrasenaNueva : '';
+
+  if (contrasenaActual === '') {
+    detalles.push({ campo: 'contrasenaActual', mensaje: 'La contrasena actual es obligatoria' });
+  }
+
+  const deLaNueva = [];
+  revisarContrasenaNueva(contrasenaNueva, deLaNueva);
+  // Las reglas anotan 'contrasena'; aca el campo se llama contrasenaNueva.
+  for (const d of deLaNueva) detalles.push({ ...d, campo: 'contrasenaNueva' });
+
+  lanzarSiHay(detalles);
+  return { contrasenaActual, contrasenaNueva };
 }

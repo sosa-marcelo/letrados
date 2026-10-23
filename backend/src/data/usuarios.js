@@ -225,5 +225,21 @@ export async function anonimizarUsuario(id, ejecutar = consultar) {
   );
 }
 
+/**
+ * Cambia el nombre de un usuario. Solo el nombre: el correo no se toca.
+ *
+ * @param {string | number} id
+ * @param {string} nombre
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<boolean>} si encontro la fila.
+ */
+export async function actualizarNombre(id, nombre, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE usuarios SET nombre = $2 WHERE id = $1`,
+    [id, nombre],
+  );
+  return rowCount > 0;
+}
+
 /** 60 caracteres, sin el prefijo `$2`: ningun bcrypt lo acepta como hash. */
 const HASH_INUTILIZABLE = '!'.repeat(60);

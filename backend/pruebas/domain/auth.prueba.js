@@ -319,6 +319,69 @@ describe('confirmarRecuperacion', () => {
     const filaOtro = (await filasDeTokens()).find((f) => f.token_hash === otroTokenHash);
     expect(filaOtro.usado_en).not.toBeNull();
   });
+
+  it('cierra TODAS las sesiones abiertas de la cuenta (RF-04)', async () => {
+    await registrar(DATOS, { ejecutar }); // una sesion
+    await iniciarSesion({ email: DATOS.email, contrasena: DATOS.contrasena }, { ejecutar }); // y otra
+    const token = await generarTokenDeRecuperacion();
+
+    await confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar });
+
+    const { rows } = await ejecutar('SELECT revocada_en FROM sesiones');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((s) => s.revocada_en !== null)).toBe(true);
+  });
+
+  it('no toca las sesiones de otra cuenta', async () => {
+    await registrar(DATOS, { ejecutar });
+    const { usuario: otro } = await registrar(
+      { ...DATOS, nombre: 'Beto', email: 'beto@ejemplo.com' },
+      { ejecutar },
+    );
+    const token = await generarTokenDeRecuperacion();
+
+    await confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar });
+
+    const { rows } = await ejecutar('SELECT revocada_en FROM sesiones WHERE usuario_id = $1', [
+      otro.id,
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].revocada_en).toBeNull();
+  });
+
+  it('con un token invalido no revoca ninguna sesion', async () => {
+    await registrar(DATOS, { ejecutar });
+
+    await expect(
+      confirmarRecuperacion({ token: 'no-es-un-token', contrasena: 'otraclave2' }, { ejecutar }),
+    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO' });
+
+    const { rows } = await ejecutar('SELECT revocada_en FROM sesiones');
+    expect(rows.every((s) => s.revocada_en === null)).toBe(true);
+  });
+
+  it('si revocar las sesiones falla, todo se deshace (ROLLBACK de una sola transaccion)', async () => {
+    // pg-mem no implementa ROLLBACK, asi que se comprueba el protocolo: todas
+    // las escrituras van entre BEGIN y ROLLBACK, sin COMMIT. Contra Postgres
+    // real eso deja la contrasena y el enlace como estaban.
+    await registrar(DATOS, { ejecutar });
+    const token = await generarTokenDeRecuperacion();
+
+    const sentencias = [];
+    const conFalla = async (sql, parametros) => {
+      sentencias.push(sql.trim().split(/\s+/).slice(0, 2).join(' ').toUpperCase());
+      if (/UPDATE\s+sesiones/i.test(sql)) throw new Error('falla simulada');
+      return ejecutar(sql, parametros);
+    };
+    await expect(
+      confirmarRecuperacion({ token, contrasena: 'otraclave2' }, { ejecutar: conFalla }),
+    ).rejects.toThrow('falla simulada');
+
+    expect(sentencias[0]).toBe('BEGIN');
+    expect(sentencias.at(-1)).toBe('ROLLBACK');
+    expect(sentencias).not.toContain('COMMIT');
+    expect(sentencias).toContain('UPDATE USUARIOS'); // el cambio de clave quedo adentro
+  });
 });
 
 describe('iniciarSesion', () => {

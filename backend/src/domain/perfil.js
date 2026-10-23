@@ -1,21 +1,19 @@
 import { noEncontrado, contrasenaIncorrecta, sesionInvalida } from './errores.js';
 import { enTransaccion } from '../infra/transaccion.js';
-import { verificar as verificarContrasena } from '../infra/hash.js';
+import { verificar as verificarContrasena, hashear } from '../infra/hash.js';
 import {
   buscarUsuarioPorId,
   buscarHashDeUsuario,
   bloquearFilaUsuario,
   anonimizarUsuario,
+  actualizarNombre,
+  actualizarContrasena,
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
- *
- * La modificacion del nombre (`PUT /api/perfil`) y el cambio de contrasena
- * (`PUT /api/perfil/contrasena`) son tareas del equipo (LET-65 y LET-66) y se
- * suman a este archivo.
  */
 
 /** Nombre que muestra una cuenta dada de baja (RF-09). */
@@ -130,6 +128,50 @@ export async function darDeBaja(usuarioId, { contrasena }, { ejecutar } = {}) {
       await archivarLibrosDeUsuario(usuarioId, tx);
       await anonimizarUsuario(usuarioId, tx);
       await revocarSesionesDeUsuario(usuarioId, {}, tx);
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * Modifica el nombre del perfil propio (RF-05) y devuelve el perfil
+ * actualizado, con la misma forma que verPerfil.
+ *
+ * @param {string} usuarioId
+ * @param {{ nombre: string }} datos - ya validados por la API.
+ * @param {{ ejecutar?: Function }} [opciones]
+ */
+export async function modificarNombre(usuarioId, { nombre }, { ejecutar } = {}) {
+  const existe = await actualizarNombre(usuarioId, nombre, ejecutar);
+  if (!existe) throw sesionInvalida();
+  return verPerfil(usuarioId, { ejecutar });
+}
+
+/**
+ * Cambio de contrasena desde el perfil (RF-05). Pide la contrasena actual,
+ * guarda el hash nuevo y revoca todas las demas sesiones en una sola
+ * transaccion.
+ *
+ * @param {{ id: string, jti: string }} usuario
+ * @param {{ contrasenaActual: string, contrasenaNueva: string }} datos
+ * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
+ * @returns {Promise<void>}
+ */
+export async function cambiarContrasena(
+  { id, jti },
+  { contrasenaActual, contrasenaNueva },
+  { ejecutar } = {},
+) {
+  const hashActual = await buscarHashDeUsuario(id, ejecutar);
+  if (!hashActual) throw sesionInvalida();
+  if (!(await verificarContrasena(contrasenaActual, hashActual))) {
+    throw contrasenaIncorrecta();
+  }
+  const hashNuevo = await hashear(contrasenaNueva);
+  await enTransaccion(
+    async (tx) => {
+      await actualizarContrasena(id, hashNuevo, tx);
+      await revocarSesionesDeUsuario(id, { excepto: jti }, tx);
     },
     { ejecutar },
   );
