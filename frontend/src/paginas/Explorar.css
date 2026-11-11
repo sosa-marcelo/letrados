@@ -1,0 +1,5 @@
+/* / — Explorar (LET-132). La grilla es la de .grilla-fichas: 3, 2 y 1 columnas. */
+
+.grilla-publicaciones {
+  align-items: start;
+}
