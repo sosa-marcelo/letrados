@@ -466,3 +466,12 @@ describe('circuitos completos y bordes (LET-148)', () => {
     expect(error.message).toMatch(/«Ficciones» ya no tiene ejemplares/);
   });
 });
+
+describe('aceptar usa el plazo configurado (LET-154)', () => {
+  it('con el parametro en 10, vence 10 segundos despues de aceptar', async () => {
+    await ejecutar(`UPDATE parametros SET valor = '10' WHERE clave = 'plazo_confirmacion_segundos'`);
+    const s = await pedir();
+    const ahora = new Date('2026-11-12T10:00:00Z');
+    expect((await aceptar(ana, s.id, { ejecutar, ahora })).venceEn).toBe('2026-11-12T10:00:10.000Z');
+  });
+});
