@@ -113,8 +113,9 @@ export function puedoCon(fila, usuarioId) {
     rechazar: parte === 'propietario' && fila.estado === 'pendiente',
     cancelar: parte !== null && CANCELABLES.includes(fila.estado),
     confirmar: parte !== null && CONFIRMABLES.includes(fila.estado) && !confirmada,
-    // Llegan con sus epicas: reportes (LET-115) y valoraciones (LET-116).
-    reportar: false,
+    // RF-24: las dos partes reportan mientras el intercambio esta flagueado.
+    reportar: parte !== null && fila.estado === 'flagueada',
+    // Llega con su epica: valoraciones (LET-116).
     valorar: false,
   };
 }

@@ -449,6 +449,30 @@ export function validarSolicitud(cuerpo = {}) {
   return { publicacionId, libroOfrecidoId };
 }
 
+const LARGO_MAX_REPORTE = 1000;
+
+/**
+ * Reporte de un inconveniente (RF-24, LET-156): descripcion obligatoria,
+ * recortada, hasta 1000 caracteres.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ descripcion: string }}
+ */
+export function validarReporte(cuerpo = {}) {
+  const descripcion = typeof cuerpo.descripcion === 'string' ? cuerpo.descripcion.trim() : '';
+  const detalles = [];
+  if (descripcion === '') {
+    detalles.push({ campo: 'descripcion', mensaje: 'Contá qué pasó con el intercambio' });
+  } else if (descripcion.length > LARGO_MAX_REPORTE) {
+    detalles.push({
+      campo: 'descripcion',
+      mensaje: `El reporte no puede superar los ${LARGO_MAX_REPORTE} caracteres`,
+    });
+  }
+  lanzarSiHay(detalles);
+  return { descripcion };
+}
+
 /**
  * Baja de cuenta (RF-09): pide la contrasena para volver a autenticarse.
  *
