@@ -26,7 +26,10 @@ import './Campo.css'
  *                         Apagado por defecto: no cambia el aspecto de ningún
  *                         campo existente. Alterna el `type` entre password y
  *                         text; no le roba el foco al input al hacer clic.
- *   ...resto              se pasan al <input>
+ *   elemento?    string   'input' (default), 'textarea' o 'select' (LET-122).
+ *                         Mismo aspecto y mismos estados; el select recibe sus
+ *                         <option> como children.
+ *   ...resto              se pasan al control
  */
 export default function Campo({
   id,
@@ -39,6 +42,8 @@ export default function Campo({
   pleno = 'var(--verde)',
   complementario,
   conMostrar = false,
+  elemento = 'input',
+  children,
   ...resto
 }) {
   const [mostrar, setMostrar] = useState(false)
@@ -46,6 +51,7 @@ export default function Campo({
   const idError = error ? `${id}-error` : undefined
   const describe = [idError, idPista].filter(Boolean).join(' ') || undefined
   const tipoReal = conMostrar ? (mostrar ? 'text' : 'password') : tipo
+  const Control = elemento
 
   return (
     <div
@@ -68,16 +74,18 @@ export default function Campo({
           </button>
         )}
       </div>
-      <input
+      <Control
         id={id}
-        className="campo__input"
-        type={tipoReal}
+        className={`campo__input campo__input--${elemento}`}
+        type={elemento === 'input' ? tipoReal : undefined}
         value={valor}
         onChange={alCambiar}
         aria-invalid={error ? true : undefined}
         aria-describedby={describe}
         {...resto}
-      />
+      >
+        {elemento === 'select' ? children : undefined}
+      </Control>
       {error && (
         <p className="campo__error" id={idError} role="alert">
           {error}

@@ -24,6 +24,16 @@ beforeEach(async () => {
 
 const RAYUELA = { titulo: 'Rayuela', autor: 'Julio Cortázar', cantidad: 2 };
 
+/** Los seis datos opcionales del libro (LET-112), ya validados. */
+const DATOS_OPCIONALES = {
+  editorial: 'Sudamericana',
+  anio: 1963,
+  edicion: '1.a edición',
+  isbn: '9789500703134',
+  estadoConservacion: 'muy_bueno',
+  descripcion: 'Tapa dura, sin marcas',
+};
+
 /** Simula lo que hara el modulo 4 al aceptar un intercambio. */
 async function reservar(libroId, n) {
   await ejecutar('UPDATE libros SET cantidad_reservada = $2 WHERE id = $1', [libroId, n]);
@@ -37,9 +47,23 @@ describe('disponiblesDe y vistaLibro', () => {
 
   it('expone los tres numeros y no el usuario_id ni archivado_en', async () => {
     const libro = await agregarLibro(ana, RAYUELA, { ejecutar });
-    expect(Object.keys(libro).sort()).toEqual(
-      ['autor', 'creadoEn', 'disponible', 'id', 'publicado', 'reservada', 'tieneHistorial', 'titulo', 'total'],
-    );
+    expect(Object.keys(libro).sort()).toEqual([
+      'anio',
+      'autor',
+      'creadoEn',
+      'descripcion',
+      'disponible',
+      'edicion',
+      'editorial',
+      'estadoConservacion',
+      'id',
+      'isbn',
+      'publicado',
+      'reservada',
+      'tieneHistorial',
+      'titulo',
+      'total',
+    ]);
     expect(vistaLibro({ id: 1, titulo: 't', autor: 'a', cantidad_total: 1, cantidad_reservada: 0, creado_en: new Date() }, { publicado: true }).publicado).toBe(true);
   });
 });
@@ -57,6 +81,25 @@ describe('agregarLibro (RF-10)', () => {
       tieneHistorial: false,
     });
     expect(typeof libro.id).toBe('string');
+  });
+
+  it('sin datos opcionales los devuelve en null (LET-120)', async () => {
+    const libro = await agregarLibro(ana, RAYUELA, { ejecutar });
+    expect(libro).toMatchObject({
+      editorial: null,
+      anio: null,
+      edicion: null,
+      isbn: null,
+      estadoConservacion: null,
+      descripcion: null,
+    });
+  });
+
+  it('guarda y devuelve los seis datos opcionales (LET-120)', async () => {
+    const libro = await agregarLibro(ana, { ...RAYUELA, ...DATOS_OPCIONALES }, { ejecutar });
+    expect(libro).toMatchObject(DATOS_OPCIONALES);
+    const [listado] = (await listarLibros(ana, {}, { ejecutar })).datos;
+    expect(listado).toMatchObject(DATOS_OPCIONALES);
   });
 
   it('dos libros con el mismo titulo del mismo dueño son legitimos', async () => {
@@ -77,6 +120,24 @@ describe('modificarLibro (RF-11)', () => {
       { ejecutar },
     );
     expect(libro).toMatchObject({ titulo: 'Rayuela (2ª ed.)', autor: 'Cortázar', total: 5 });
+  });
+
+  it('reemplaza los datos opcionales: el que no viene queda en null (LET-120)', async () => {
+    const { id } = await agregarLibro(ana, { ...RAYUELA, ...DATOS_OPCIONALES }, { ejecutar });
+    const libro = await modificarLibro(
+      ana,
+      id,
+      { ...RAYUELA, anio: 1984, estadoConservacion: 'gastado' },
+      { ejecutar },
+    );
+    expect(libro).toMatchObject({
+      editorial: null,
+      anio: 1984,
+      edicion: null,
+      isbn: null,
+      estadoConservacion: 'gastado',
+      descripcion: null,
+    });
   });
 
   it('bajar por debajo de lo reservado -> 409 ESTADO_INVALIDO y el mensaje dice el minimo', async () => {
