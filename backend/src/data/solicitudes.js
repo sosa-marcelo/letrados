@@ -36,7 +36,8 @@ import { consultar } from '../infra/bd.js';
  *   propietario_id: string, libro_solicitado_id: string, publicacion_estado: string,
  *   solicitado_titulo: string, solicitado_autor: string,
  *   ofrecido_titulo: string, ofrecido_autor: string,
- *   propietario_nombre: string, solicitante_nombre: string
+ *   propietario_nombre: string, solicitante_nombre: string,
+ *   valoracion_propietario: number | null, valoracion_solicitante: number | null
  * }} FilaSolicitudCompleta
  */
 
@@ -53,13 +54,16 @@ const SELECT_COMPLETA = `
          p.estado AS publicacion_estado,
          ls.titulo AS solicitado_titulo, ls.autor AS solicitado_autor,
          lo.titulo AS ofrecido_titulo, lo.autor AS ofrecido_autor,
-         up.nombre AS propietario_nombre, us.nombre AS solicitante_nombre
+         up.nombre AS propietario_nombre, us.nombre AS solicitante_nombre,
+         vp.puntaje AS valoracion_propietario, vs.puntaje AS valoracion_solicitante
     FROM solicitudes s
     JOIN publicaciones p ON p.id = s.publicacion_id
     JOIN libros ls ON ls.id = p.libro_id
     JOIN libros lo ON lo.id = s.libro_ofrecido_id
     JOIN usuarios up ON up.id = p.usuario_id
-    JOIN usuarios us ON us.id = s.solicitante_id`;
+    JOIN usuarios us ON us.id = s.solicitante_id
+    LEFT JOIN valoraciones vp ON vp.solicitud_id = s.id AND vp.autor_id = p.usuario_id
+    LEFT JOIN valoraciones vs ON vs.solicitud_id = s.id AND vs.autor_id = s.solicitante_id`;
 
 /** Estados en los que una solicitud sigue abierta (todavia compromete libros). */
 export const ESTADOS_ABIERTOS = ['pendiente', 'aceptada', 'flagueada'];

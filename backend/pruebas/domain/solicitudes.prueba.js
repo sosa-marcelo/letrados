@@ -152,9 +152,12 @@ describe('vistaSolicitud y puedoCon', () => {
     expect(vistaSolicitud(aceptada, '20')).toMatchObject({ confirmadaPorMi: false, confirmadaPorContraparte: true });
   });
 
-  it('en una completada nadie puede nada; un tercero no es parte', () => {
+  it('en una completada solo queda valorar, una vez; un tercero no es parte', () => {
     const completada = { ...fila, estado: 'completada' };
-    expect(Object.values(puedoCon(completada, '10')).some(Boolean)).toBe(false);
+    const { valorar, ...resto } = puedoCon(completada, '10');
+    expect(valorar).toBe(true);
+    expect(Object.values(resto).some(Boolean)).toBe(false);
+    expect(puedoCon({ ...completada, valoracion_propietario: 4 }, '10').valorar).toBe(false);
     expect(parteDe(fila, '99')).toBeNull();
     expect(Object.values(puedoCon(fila, '99')).some(Boolean)).toBe(false);
   });
