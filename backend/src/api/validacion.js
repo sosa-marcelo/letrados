@@ -473,6 +473,33 @@ export function validarReporte(cuerpo = {}) {
   return { descripcion };
 }
 
+const LARGO_MAX_COMENTARIO = 500;
+
+/**
+ * Valoracion de la contraparte (RF-25, LET-163): puntaje entero de 1 a 5
+ * (numero o texto, lo que mande el cliente) y comentario opcional de hasta 500.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ puntaje: number, comentario: string | null }}
+ */
+export function validarValoracion(cuerpo = {}) {
+  const detalles = [];
+  const crudo = cuerpo.puntaje;
+  const esEnteroTexto = typeof crudo === 'string' && /^\s*\d+\s*$/.test(crudo);
+  const puntaje =
+    typeof crudo === 'number' ? crudo : esEnteroTexto ? Number.parseInt(crudo, 10) : NaN;
+  if (!Number.isInteger(puntaje) || puntaje < 1 || puntaje > 5) {
+    detalles.push({ campo: 'puntaje', mensaje: 'Elegí un puntaje entero de 1 a 5' });
+  }
+  const comentario = textoOpcional(
+    cuerpo.comentario,
+    { campo: 'comentario', etiqueta: 'El comentario', maximo: LARGO_MAX_COMENTARIO },
+    detalles,
+  );
+  lanzarSiHay(detalles);
+  return { puntaje, comentario };
+}
+
 /**
  * Baja de cuenta (RF-09): pide la contrasena para volver a autenticarse.
  *

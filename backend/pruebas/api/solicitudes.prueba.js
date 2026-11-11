@@ -179,3 +179,34 @@ describe('GET /api/admin/flagueados (LET-157)', () => {
     expect(r.body.datos[0]).toMatchObject({ id, estado: 'flagueada', reportes: [{ descripcion: 'No vino' }] });
   });
 });
+
+describe('POST /api/solicitudes/:id/valoracion (LET-163, RF-25)', () => {
+  it('-> 201 sobre una completada; repetir -> 409; puntaje invalido -> 400', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    expect((await beto.yo.post(`/api/solicitudes/${id}/valoracion`, { puntaje: 5 })).status).toBe(409);
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    await ana.yo.post(`/api/solicitudes/${id}/confirmar`);
+    await beto.yo.post(`/api/solicitudes/${id}/confirmar`);
+
+    expect((await beto.yo.post(`/api/solicitudes/${id}/valoracion`, { puntaje: 9 })).status).toBe(400);
+    const r = await beto.yo.post(`/api/solicitudes/${id}/valoracion`, { puntaje: 5, comentario: 'Todo bien' });
+    expect(r.status).toBe(201);
+    expect(r.body.valoracion).toMatchObject({ puntaje: 5, comentario: 'Todo bien' });
+    expect((await beto.yo.post(`/api/solicitudes/${id}/valoracion`, { puntaje: 4 })).status).toBe(409);
+  });
+});
+
+describe('GET /api/usuarios/:id/valoraciones (LET-165, RF-27)', () => {
+  it('publica, con la valoracion recibida; id invalido -> 404', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    await ana.yo.post(`/api/solicitudes/${id}/confirmar`);
+    await beto.yo.post(`/api/solicitudes/${id}/confirmar`);
+    await beto.yo.post(`/api/solicitudes/${id}/valoracion`, { puntaje: 4, comentario: 'Bien' });
+
+    const r = await request(app).get(`/api/usuarios/${ana.id}/valoraciones`);
+    expect(r.status).toBe(200);
+    expect(r.body.datos[0]).toMatchObject({ puntaje: 4, comentario: 'Bien', autor: { id: beto.id } });
+    expect((await request(app).get('/api/usuarios/abc/valoraciones')).status).toBe(404);
+  });
+});
