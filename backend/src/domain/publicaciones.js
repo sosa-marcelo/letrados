@@ -4,6 +4,7 @@ import { SIN_VALORACIONES, reputacionDe, reputacionesDe } from './reputacion.js'
 import { enTransaccion } from '../infra/transaccion.js';
 import { bloquearLibroPropio } from '../data/libros.js';
 import { guardarFoto, borrarFoto, leerFoto } from '../data/fotos.js';
+import { cerrarPendientesDePublicacion } from '../data/solicitudes.js';
 import {
   insertarPublicacion,
   bloquearPublicacionPropia,
@@ -225,7 +226,8 @@ export async function modificarNota(usuarioId, publicacionId, { nota }, { ejecut
 
 /**
  * Retira una publicacion propia y activa (RF-14): deja de verse en Explorar y
- * el libro queda libre para volver a publicarse.
+ * el libro queda libre para volver a publicarse. Sus solicitudes pendientes
+ * pasan a `cancelada`, a nombre del dueño, en la misma transaccion (LET-145).
  *
  * @param {string} usuarioId
  * @param {string} publicacionId
@@ -237,6 +239,7 @@ export async function retirar(usuarioId, publicacionId, { ejecutar } = {}) {
     async (tx) => {
       await bloquearPublicacionModificable(usuarioId, publicacionId, tx);
       await cambiarEstadoPublicacion(publicacionId, 'retirada', tx);
+      await cerrarPendientesDePublicacion(publicacionId, 'cancelada', { canceladaPor: usuarioId }, tx);
       return { resultado: 'retirada' };
     },
     { ejecutar },

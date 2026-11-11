@@ -13,7 +13,16 @@ import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
 import { reputacionDe } from './reputacion.js';
 import { vistaPublicacion } from './publicaciones.js';
-import { publicacionesActivasDeUsuario } from '../data/publicaciones.js';
+import {
+  publicacionesActivasDeUsuario,
+  retirarPublicacionesDeUsuario,
+} from '../data/publicaciones.js';
+import {
+  solicitudesAbiertasDeUsuario,
+  bloquearSolicitud,
+  buscarSolicitud,
+} from '../data/solicitudes.js';
+import { cancelarBloqueada } from './solicitudes.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
@@ -95,9 +104,10 @@ export async function perfilPublico(usuarioId, { ejecutar } = {}) {
  * pero con reservas trabadas.
  *
  * ```
- * 1-3. Cancelar intercambios no completados, liberar reservas y reactivar
- *      publicaciones ajenas.            <- modulo 4, fuera del ciclo 2
- * 4.   Retirar publicaciones propias.   <- modulo 4, fuera del ciclo 2
+ * 1-3. Cancelar las solicitudes abiertas donde es parte (pendientes,
+ *      aceptadas y flagueadas), liberar sus reservas y reactivar las
+ *      publicaciones ajenas que habia reservado (LET-147).
+ * 4.   Retirar sus publicaciones vigentes (LET-147).
  * 5.   Archivar los libros propios (no se borran: el historial los nombra).
  * 6.   Anonimizar la fila de usuarios (nombre, correo .invalid, hash inutil).
  * 7.   Revocar todas sus sesiones.
@@ -120,6 +130,15 @@ export async function darDeBaja(usuarioId, { contrasena }, { ejecutar } = {}) {
     async (tx) => {
       const fila = await bloquearFilaUsuario(usuarioId, tx);
       if (!fila || fila.estado === 'eliminada') throw sesionInvalida();
+
+      // 1-3. Cada solicitud abierta se cancela con la misma regla de RF-20,
+      // bloqueada primero, como cualquier otra accion sobre una solicitud.
+      for (const abierta of await solicitudesAbiertasDeUsuario(usuarioId, tx)) {
+        await bloquearSolicitud(abierta.id, tx);
+        await cancelarBloqueada(await buscarSolicitud(abierta.id, tx), usuarioId, tx);
+      }
+      // 4.
+      await retirarPublicacionesDeUsuario(usuarioId, tx);
 
       await archivarLibrosDeUsuario(usuarioId, tx);
       await anonimizarUsuario(usuarioId, tx);

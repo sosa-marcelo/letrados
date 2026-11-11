@@ -97,6 +97,19 @@ export async function bloquearPublicacionPropia(id, usuario_id, ejecutar = consu
 }
 
 /**
+ * Lee una publicacion cualquiera bloqueando su fila hasta el fin de la
+ * transaccion. Lo usan las solicitudes (LET-138).
+ *
+ * @param {string | number} id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<FilaPublicacion | null>}
+ */
+export async function bloquearPublicacion(id, ejecutar = consultar) {
+  const { rows } = await ejecutar(`SELECT ${COLUMNAS} FROM publicaciones WHERE id = $1 FOR UPDATE`, [id]);
+  return rows[0] ?? null;
+}
+
+/**
  * La publicacion vigente (activa o reservada) de un libro, si la hay.
  *
  * @param {string | number} libro_id
@@ -170,6 +183,23 @@ export async function cambiarEstadoPublicacion(id, estado, ejecutar = consultar)
     [id, estado],
   );
   return rows[0];
+}
+
+/**
+ * Retira todas las publicaciones vigentes (activa o reservada) de un usuario.
+ * Para la baja de cuenta (RF-09, LET-147).
+ *
+ * @param {string | number} usuario_id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<number>} cuantas retiro.
+ */
+export async function retirarPublicacionesDeUsuario(usuario_id, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE publicaciones SET estado = 'retirada', cerrada_en = now()
+      WHERE usuario_id = $1 AND estado IN ('activa', 'reservada')`,
+    [usuario_id],
+  );
+  return rowCount ?? 0;
 }
 
 /**

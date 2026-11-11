@@ -78,6 +78,9 @@ export default function Barra() {
       <NavLink to="/mis-libros" className={claseEnlace}>
         Mis libros
       </NavLink>
+      <NavLink to="/solicitudes" className={claseEnlace}>
+        Solicitudes
+      </NavLink>
       <NavLink to="/perfil" className={claseEnlace}>
         Perfil
       </NavLink>

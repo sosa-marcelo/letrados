@@ -427,6 +427,29 @@ export function validarNota(cuerpo = {}) {
 }
 
 /**
+ * Alta de una solicitud de intercambio (RF-17, LET-144): la publicacion que
+ * se pide y el libro propio que se ofrece, como texto o numero.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ publicacionId: string, libroOfrecidoId: string }}
+ */
+export function validarSolicitud(cuerpo = {}) {
+  const detalles = [];
+  const texto = (crudo) =>
+    typeof crudo === 'number' || typeof crudo === 'string' ? String(crudo).trim() : '';
+  const publicacionId = texto(cuerpo.publicacionId);
+  const libroOfrecidoId = texto(cuerpo.libroOfrecidoId);
+  if (!esIdValido(publicacionId)) {
+    detalles.push({ campo: 'publicacionId', mensaje: 'Falta la publicación que querés solicitar' });
+  }
+  if (!esIdValido(libroOfrecidoId)) {
+    detalles.push({ campo: 'libroOfrecidoId', mensaje: 'Elegí un libro de tu catálogo para ofrecer' });
+  }
+  lanzarSiHay(detalles);
+  return { publicacionId, libroOfrecidoId };
+}
+
+/**
  * Baja de cuenta (RF-09): pide la contrasena para volver a autenticarse.
  *
  * @param {Record<string, unknown>} cuerpo
