@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
+import { insertarValoracion, valoracionDe, valoracionesRecibidas } from '../../src/data/valoraciones.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
 let ejecutar;
@@ -45,5 +46,29 @@ describe('migracion 009: valoraciones', () => {
 
   it('nadie se valora a si mismo', async () => {
     await expect(valorar(ana, ana)).rejects.toThrow();
+  });
+});
+
+describe('capa de datos de valoraciones (LET-166)', () => {
+  it('insertarValoracion y valoracionDe', async () => {
+    expect(await valoracionDe(solicitudId, beto, ejecutar)).toBeNull();
+    const v = await insertarValoracion({ solicitud_id: solicitudId, autor_id: beto, valorado_id: ana, puntaje: 4, comentario: 'Bien' }, ejecutar);
+    expect(v).toMatchObject({ puntaje: 4, comentario: 'Bien' });
+    expect(await valoracionDe(solicitudId, beto, ejecutar)).toMatchObject({ puntaje: 4 });
+  });
+
+  it('el UNIQUE devuelve el codigo 23505, que el dominio traduce a 409', async () => {
+    await insertarValoracion({ solicitud_id: solicitudId, autor_id: beto, valorado_id: ana, puntaje: 4 }, ejecutar);
+    await expect(
+      insertarValoracion({ solicitud_id: solicitudId, autor_id: beto, valorado_id: ana, puntaje: 5 }, ejecutar),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+
+  it('valoracionesRecibidas trae autor y titulos, y pagina', async () => {
+    await insertarValoracion({ solicitud_id: solicitudId, autor_id: beto, valorado_id: ana, puntaje: 5 }, ejecutar);
+    const { filas, total } = await valoracionesRecibidas(ana, { limite: 10, desplazamiento: 0 }, ejecutar);
+    expect(total).toBe(1);
+    expect(filas[0]).toMatchObject({ autor_nombre: 'Beto', solicitado_titulo: 'Rayuela', ofrecido_titulo: 'Ficciones' });
+    expect((await valoracionesRecibidas(ana, { limite: 10, desplazamiento: 1 }, ejecutar)).filas).toEqual([]);
   });
 });
