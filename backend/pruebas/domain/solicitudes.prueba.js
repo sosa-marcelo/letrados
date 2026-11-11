@@ -12,7 +12,7 @@ import {
   listar,
   ver,
 } from '../../src/domain/solicitudes.js';
-import { publicar } from '../../src/domain/publicaciones.js';
+import { publicar, retirar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
@@ -361,5 +361,23 @@ describe('listar y ver (RF-18)', () => {
     const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
     expect(await errorDe(() => ver(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
     expect(await errorDe(() => ver(ana, '999', { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+});
+
+describe('retirar una publicacion cancela sus pendientes (LET-145)', () => {
+  it('el solicitante ve su solicitud cancelada, a nombre del dueño', async () => {
+    const s = await pedir();
+    await retirar(ana, publicacion.id, { ejecutar });
+    const vista = await ver(beto, s.id, { ejecutar });
+    expect(vista.estado).toBe('cancelada');
+    const { rows } = await ejecutar('SELECT cancelada_por FROM solicitudes WHERE id = $1', [s.id]);
+    expect(String(rows[0].cancelada_por)).toBe(ana);
+  });
+
+  it('con una aceptada no se puede retirar (409) y nada cambia', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    expect(await errorDe(() => retirar(ana, publicacion.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+    expect((await ver(beto, s.id, { ejecutar })).estado).toBe('aceptada');
   });
 });
