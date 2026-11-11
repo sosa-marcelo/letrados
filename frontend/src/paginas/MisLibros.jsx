@@ -242,21 +242,52 @@ function FichaLibro({ libro, alEditar, alRetirar }) {
   )
 }
 
+/** Estados de conservación (LET-112), con el texto que ve la persona. */
+const ESTADOS_CONSERVACION = [
+  ['nuevo', 'Nuevo'],
+  ['muy_bueno', 'Muy bueno'],
+  ['bueno', 'Bueno'],
+  ['gastado', 'Gastado'],
+]
+
+/** Los seis datos opcionales del libro, en el orden del formulario. */
+const OPCIONALES = ['editorial', 'anio', 'edicion', 'isbn', 'estadoConservacion', 'descripcion']
+const LARGO_DESCRIPCION = 500
+
+/** Valor de un dato opcional para un input controlado: null -> ''. */
+function textoDe(valor) {
+  return valor === null || valor === undefined ? '' : String(valor)
+}
+
 /*
- * Alta y edición en el mismo formulario (tres campos). En edición, si hay
- * reservas, la cantidad no puede bajar de `reservada`: la pista lo dice y el
- * botón se deshabilita por debajo — el mismo límite que exige el servidor.
+ * Alta y edición en el mismo formulario. Arriba los tres obligatorios; abajo,
+ * plegada, «Más datos (opcional)» con los seis de LET-112. Al editar, la
+ * sección se abre sola si el libro tiene alguno cargado, y también se abre si
+ * el servidor marca un error en uno de ellos.
+ *
+ * En edición, si hay reservas, la cantidad no puede bajar de `reservada`: la
+ * pista lo dice y el botón se deshabilita por debajo — el mismo límite que
+ * exige el servidor.
  */
 function DialogoLibro({ libro, alCerrar, alGuardar }) {
   const esAlta = !libro
   const minimo = esAlta ? 1 : Math.max(1, libro.reservada)
+  const anioActual = new Date().getFullYear()
 
   const [titulo, setTitulo] = useState(libro?.titulo ?? '')
   const [autor, setAutor] = useState(libro?.autor ?? '')
   const [cantidad, setCantidad] = useState(String(libro?.total ?? 1))
+  const [opcionales, setOpcionales] = useState(() =>
+    Object.fromEntries(OPCIONALES.map((campo) => [campo, textoDe(libro?.[campo])])),
+  )
+  const [masAbierto, setMasAbierto] = useState(
+    () => !esAlta && OPCIONALES.some((campo) => textoDe(libro[campo]) !== ''),
+  )
   const [enviando, setEnviando] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState(null)
   const [erroresCampo, setErroresCampo] = useState({})
+
+  const cambiar = (campo) => (e) => setOpcionales((o) => ({ ...o, [campo]: e.target.value }))
 
   const numero = Number(cantidad)
   const bajoReservas = !esAlta && libro.reservada > 0 && cantidad !== '' && numero < libro.reservada
@@ -271,7 +302,8 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
     setEnviando(true)
     setErrorGeneral(null)
     setErroresCampo({})
-    const cuerpo = { titulo, autor, cantidad: cantidad === '' ? cantidad : numero }
+    // Los opcionales viajan como texto: el servidor recorta y deja en null los vacíos.
+    const cuerpo = { titulo, autor, cantidad: cantidad === '' ? cantidad : numero, ...opcionales }
     try {
       const { libro: guardado } = esAlta
         ? await enviar('/libros', cuerpo)
@@ -280,7 +312,9 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
     } catch (error) {
       setEnviando(false)
       if (error instanceof ErrorApi && error.codigo === 'DATOS_INVALIDOS' && error.detalles.length) {
-        setErroresCampo(mapearDetalles(error.detalles))
+        const errores = mapearDetalles(error.detalles)
+        setErroresCampo(errores)
+        if (OPCIONALES.some((campo) => errores[campo])) setMasAbierto(true)
       } else {
         setErrorGeneral(mensajeDeError(error))
       }
@@ -351,6 +385,94 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
           required
         />
       </div>
+
+      <details
+        className="libro__mas"
+        open={masAbierto}
+        onToggle={(e) => setMasAbierto(e.currentTarget.open)}
+      >
+        <summary className="libro__mas-titulo">Más datos (opcional)</summary>
+        <Campo
+          id="libro-editorial"
+          etiqueta="Editorial"
+          valor={opcionales.editorial}
+          alCambiar={cambiar('editorial')}
+          error={erroresCampo.editorial}
+          pleno={PLENO}
+          disabled={enviando}
+          maxLength={120}
+        />
+        <div className="libro__mas-grilla">
+          <Campo
+            id="libro-anio"
+            etiqueta="Año de publicación"
+            tipo="number"
+            inputMode="numeric"
+            min={1450}
+            max={anioActual}
+            step={1}
+            valor={opcionales.anio}
+            alCambiar={cambiar('anio')}
+            error={erroresCampo.anio}
+            pleno={PLENO}
+            disabled={enviando}
+          />
+          <Campo
+            id="libro-edicion"
+            etiqueta="Edición"
+            placeholder="3.ª edición, bolsillo…"
+            valor={opcionales.edicion}
+            alCambiar={cambiar('edicion')}
+            error={erroresCampo.edicion}
+            pleno={PLENO}
+            disabled={enviando}
+            maxLength={60}
+          />
+          <Campo
+            id="libro-isbn"
+            etiqueta="ISBN"
+            inputMode="numeric"
+            placeholder="978-950-07-0313-4"
+            valor={opcionales.isbn}
+            alCambiar={cambiar('isbn')}
+            error={erroresCampo.isbn}
+            pleno={PLENO}
+            disabled={enviando}
+            maxLength={20}
+          />
+          <Campo
+            id="libro-estado"
+            etiqueta="Estado de conservación"
+            elemento="select"
+            valor={opcionales.estadoConservacion}
+            alCambiar={cambiar('estadoConservacion')}
+            error={erroresCampo.estadoConservacion}
+            pleno={PLENO}
+            disabled={enviando}
+          >
+            <option value="">Sin indicar</option>
+            {ESTADOS_CONSERVACION.map(([valor, texto]) => (
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
+            ))}
+          </Campo>
+        </div>
+        <Campo
+          id="libro-descripcion"
+          etiqueta="Descripción"
+          elemento="textarea"
+          placeholder="Estado de las tapas, anotaciones, lo que quieras contar del ejemplar."
+          valor={opcionales.descripcion}
+          alCambiar={cambiar('descripcion')}
+          error={erroresCampo.descripcion}
+          pista={`${opcionales.descripcion.length}/${LARGO_DESCRIPCION}`}
+          pleno={PLENO}
+          disabled={enviando}
+          maxLength={LARGO_DESCRIPCION}
+          rows={4}
+        />
+      </details>
     </Dialogo>
   )
 }
