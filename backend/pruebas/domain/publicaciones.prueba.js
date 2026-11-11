@@ -13,7 +13,8 @@ import {
   verPublicacion,
   POR_PAGINA_MAX,
 } from '../../src/domain/publicaciones.js';
-import { agregarLibro } from '../../src/domain/libros.js';
+import { agregarLibro, listarLibros, modificarLibro } from '../../src/domain/libros.js';
+import { perfilPublico } from '../../src/domain/perfil.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
 let ejecutar;
@@ -285,5 +286,52 @@ describe('listarActivas y verPublicacion (LET-128, RF-15 y RF-16)', () => {
 
   it('el detalle de una inexistente -> 404', async () => {
     expect(await errorDe(() => verPublicacion('999', { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+});
+
+describe('catalogo y perfil publico con publicaciones (LET-130)', () => {
+  it('listarLibros marca publicado y publicacionId solo en los libros con publicacion vigente', async () => {
+    const ficciones = await agregarLibro(ana, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const { datos } = await listarLibros(ana, {}, { ejecutar });
+    const porTitulo = Object.fromEntries(datos.map((l) => [l.titulo, l]));
+    expect(porTitulo.Rayuela).toMatchObject({ publicado: true, publicacionId: p.id });
+    expect(porTitulo.Ficciones).toMatchObject({ publicado: false, publicacionId: null });
+    expect(ficciones.publicado).toBe(false);
+  });
+
+  it('una publicacion retirada ya no cuenta como publicado', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await retirar(ana, p.id, { ejecutar });
+    const [libro] = (await listarLibros(ana, {}, { ejecutar })).datos;
+    expect(libro.publicado).toBe(false);
+  });
+
+  it('modificarLibro sigue diciendo que el libro esta publicado', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const libro = await modificarLibro(ana, rayuela.id, { titulo: 'Rayuela', autor: 'Cortázar', cantidad: 3 }, { ejecutar });
+    expect(libro).toMatchObject({ publicado: true, publicacionId: p.id, total: 3 });
+  });
+
+  it('el perfil publico lista las publicaciones activas con la forma de Explorar', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id, nota: 'En el centro' }, { ejecutar });
+    const perfil = await perfilPublico(ana, { ejecutar });
+    expect(perfil.publicaciones).toHaveLength(1);
+    expect(perfil.publicaciones[0]).toMatchObject({
+      id: p.id,
+      nota: 'En el centro',
+      esMia: false,
+      libro: { titulo: 'Rayuela' },
+      propietario: { id: ana, nombre: 'Ana' },
+    });
+  });
+
+  it('el perfil publico no muestra retiradas ni las de una cuenta bloqueada', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await ejecutar(`UPDATE usuarios SET estado = 'bloqueada' WHERE id = $1`, [ana]);
+    expect((await perfilPublico(ana, { ejecutar })).publicaciones).toEqual([]);
+    await ejecutar(`UPDATE usuarios SET estado = 'activa' WHERE id = $1`, [ana]);
+    await retirar(ana, p.id, { ejecutar });
+    expect((await perfilPublico(ana, { ejecutar })).publicaciones).toEqual([]);
   });
 });
