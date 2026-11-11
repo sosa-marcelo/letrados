@@ -5,6 +5,8 @@ import { solicitar, aceptar, ver } from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { reportesDeSolicitudes } from '../../src/data/reportes.js';
+import { listarFlagueados } from '../../src/domain/admin.js';
+import { confirmar } from '../../src/domain/solicitudes.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
 let ejecutar;
@@ -68,5 +70,39 @@ describe('reportes de inconvenientes (LET-156, RF-24)', () => {
 
   it('reportesDeSolicitudes sin ids devuelve []', async () => {
     expect(await reportesDeSolicitudes([], ejecutar)).toEqual([]);
+  });
+});
+
+describe('listarFlagueados para el panel (LET-157, RF-23 y RF-24)', () => {
+  it('trae el flagueado con las dos partes, los libros, el motivo y sus reportes', async () => {
+    await flagueada();
+    await reportar(beto, solicitud.id, { descripcion: 'No vino' }, { ejecutar });
+    const { datos, paginacion } = await listarFlagueados({}, { ejecutar });
+    expect(paginacion.total).toBe(1);
+    expect(datos[0]).toMatchObject({
+      id: solicitud.id,
+      estado: 'flagueada',
+      propietario: { id: ana, nombre: 'Ana' },
+      solicitante: { id: beto, nombre: 'Beto' },
+      libroSolicitado: { titulo: 'Rayuela' },
+      libroOfrecido: { titulo: 'Ficciones' },
+      reportes: [{ descripcion: 'No vino', autor: { nombre: 'Beto' } }],
+    });
+    expect(datos[0].motivo).toMatch(/Venció el plazo/);
+  });
+
+  it('barre antes de listar: lo que vencio recien ya aparece', async () => {
+    await aceptar(ana, solicitud.id, { ejecutar });
+    await ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [solicitud.id]);
+    expect((await listarFlagueados({}, { ejecutar })).paginacion.total).toBe(1);
+  });
+
+  it('por defecto, solo los que siguen flagueados; con todos, tambien los que se completaron', async () => {
+    await flagueada();
+    await confirmar(ana, solicitud.id, { ejecutar });
+    await confirmar(beto, solicitud.id, { ejecutar });
+    expect((await listarFlagueados({}, { ejecutar })).paginacion.total).toBe(0);
+    const todos = await listarFlagueados({ estado: 'todos' }, { ejecutar });
+    expect(todos.datos.map((d) => d.estado)).toEqual(['completada']);
   });
 });
