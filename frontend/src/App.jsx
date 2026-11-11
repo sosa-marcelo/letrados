@@ -17,6 +17,7 @@ import PerfilPublico from './paginas/PerfilPublico.jsx'
 import Publicacion from './paginas/Publicacion.jsx'
 import Recuperar from './paginas/Recuperar.jsx'
 import Registro from './paginas/Registro.jsx'
+import Solicitudes from './paginas/Solicitudes.jsx'
 
 /*
  * Mapa de navegación (DISENIO-GENERAL §9), con el módulo 4 (ciclo 3):
@@ -30,6 +31,7 @@ import Registro from './paginas/Registro.jsx'
  *   con sesión
  *     /mis-libros          Catálogo propio                verde
  *     /perfil              Nombre, contraseña, baja       verde
+ *     /solicitudes         Recibidas y enviadas (LET-150) verde
  *
  *   administrador
  *     /admin/cuentas       Listar, buscar, bloquear       tinta
@@ -64,6 +66,14 @@ const rutas = [
     element: (
       <RutaProtegida>
         <MisLibros />
+      </RutaProtegida>
+    ),
+  },
+  {
+    path: '/solicitudes',
+    element: (
+      <RutaProtegida>
+        <Solicitudes />
       </RutaProtegida>
     ),
   },
