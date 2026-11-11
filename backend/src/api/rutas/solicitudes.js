@@ -2,8 +2,9 @@ import { Router } from 'express';
 
 import * as solicitudes from '../../domain/solicitudes.js';
 import { reportar } from '../../domain/reportes.js';
+import { valorar } from '../../domain/valoraciones.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { esIdValido, validarSolicitud, validarReporte } from '../validacion.js';
+import { esIdValido, validarSolicitud, validarReporte, validarValoracion } from '../validacion.js';
 
 /**
  * Rutas de las solicitudes e intercambios (modulo 4, epica LET-114, RF-17 a
@@ -52,6 +53,12 @@ for (const [accion, hacer] of Object.entries(ACCIONES)) {
 rutasSolicitudes.post('/solicitudes/:id/reportes', async (req, res) => {
   const reporte = await reportar(req.usuario.id, idSolicitud(req.params.id), validarReporte(req.body));
   res.status(201).json({ reporte });
+});
+
+// POST /api/solicitudes/:id/valoracion { puntaje, comentario? } -> 201 { valoracion } | 400 | 404 | 409   (RF-25)
+rutasSolicitudes.post('/solicitudes/:id/valoracion', async (req, res) => {
+  const valoracion = await valorar(req.usuario.id, idSolicitud(req.params.id), validarValoracion(req.body));
+  res.status(201).json({ valoracion });
 });
 
 /**

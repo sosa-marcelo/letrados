@@ -79,6 +79,7 @@ const CONFIRMABLES = ['aceptada', 'flagueada'];
  * @property {string | null} motivoFlagueo
  * @property {boolean} confirmadaPorMi
  * @property {boolean} confirmadaPorContraparte
+ * @property {number | null} miValoracion - el puntaje que ya diste, si valoraste (RF-25).
  * @property {{ aceptar: boolean, rechazar: boolean, cancelar: boolean, confirmar: boolean, reportar: boolean, valorar: boolean }} puedo
  * @property {string} creadaEn
  */
@@ -93,6 +94,19 @@ const CONFIRMABLES = ['aceptada', 'flagueada'];
 export function parteDe(fila, usuarioId) {
   if (String(fila.propietario_id) === String(usuarioId)) return 'propietario';
   if (String(fila.solicitante_id) === String(usuarioId)) return 'solicitante';
+  return null;
+}
+
+/**
+ * El puntaje que la parte ya dio en este intercambio, o null.
+ *
+ * @param {import('../data/solicitudes.js').FilaSolicitudCompleta} fila
+ * @param {'propietario' | 'solicitante' | null} parte
+ * @returns {number | null}
+ */
+function miValoracion(fila, parte) {
+  if (parte === 'propietario') return fila.valoracion_propietario ?? null;
+  if (parte === 'solicitante') return fila.valoracion_solicitante ?? null;
   return null;
 }
 
@@ -115,8 +129,8 @@ export function puedoCon(fila, usuarioId) {
     confirmar: parte !== null && CONFIRMABLES.includes(fila.estado) && !confirmada,
     // RF-24: las dos partes reportan mientras el intercambio esta flagueado.
     reportar: parte !== null && fila.estado === 'flagueada',
-    // Llega con su epica: valoraciones (LET-116).
-    valorar: false,
+    // RF-25: cada parte valora una sola vez, despues de completar.
+    valorar: parte !== null && fila.estado === 'completada' && miValoracion(fila, parte) == null,
   };
 }
 
@@ -157,6 +171,7 @@ export function vistaSolicitud(fila, usuarioId) {
     confirmadaPorContraparte: Boolean(
       soyPropietario ? fila.confirmada_solicitante_en : fila.confirmada_propietario_en,
     ),
+    miValoracion: miValoracion(fila, parteDe(fila, usuarioId)),
     puedo: puedoCon(fila, usuarioId),
     creadaEn: fecha(fila.creada_en),
   };
