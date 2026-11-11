@@ -1,9 +1,22 @@
-import { noEncontrado, estadoInvalido } from './errores.js';
+import { noEncontrado, estadoInvalido, accesoDenegado } from './errores.js';
 import { disponiblesDe } from './libros.js';
+import { calcularVencimiento } from './plazo.js';
 import { enTransaccion } from '../infra/transaccion.js';
-import { bloquearLibroPropio } from '../data/libros.js';
-import { bloquearPublicacion, buscarPublicacion } from '../data/publicaciones.js';
-import { insertarSolicitud, buscarSolicitud, tienePendiente } from '../data/solicitudes.js';
+import { bloquearLibroPropio, bloquearLibro, moverEjemplar } from '../data/libros.js';
+import {
+  bloquearPublicacion,
+  buscarPublicacion,
+  cambiarEstadoPublicacion,
+} from '../data/publicaciones.js';
+import {
+  insertarSolicitud,
+  buscarSolicitud,
+  tienePendiente,
+  bloquearSolicitud,
+  marcarAceptada,
+  cerrarSolicitud,
+  cerrarPendientesDePublicacion,
+} from '../data/solicitudes.js';
 
 /**
  * Reglas de las solicitudes e intercambios (modulo 4, epica LET-114, RF-17 a
@@ -168,6 +181,130 @@ export async function solicitar(usuarioId, { publicacionId, libroOfrecidoId }, {
         tx,
       );
       return vistaSolicitud(await buscarSolicitud(id, tx), usuarioId);
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * Bloquea una solicitud de la que el usuario es parte y la devuelve completa.
+ * Es el primer paso de toda accion: la solicitud es lo primero que se bloquea.
+ *
+ * - Inexistente o ajena -> 404 NO_ENCONTRADO (nunca 403).
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {import('../data/solicitudes.js').Ejecutor} tx
+ * @returns {Promise<import('../data/solicitudes.js').FilaSolicitudCompleta>}
+ */
+export async function bloquearComoParte(usuarioId, solicitudId, tx) {
+  if (!(await bloquearSolicitud(solicitudId, tx))) throw solicitudNoEncontrada();
+  const fila = await buscarSolicitud(solicitudId, tx);
+  if (!parteDe(fila, usuarioId)) throw solicitudNoEncontrada();
+  return fila;
+}
+
+/**
+ * Bloquea los dos libros de una solicitud en orden de id ascendente (el
+ * orden fijo evita interbloqueos entre dos aceptaciones cruzadas).
+ *
+ * @param {import('../data/solicitudes.js').FilaSolicitudCompleta} fila
+ * @param {import('../data/solicitudes.js').Ejecutor} tx
+ * @returns {Promise<{ solicitado: import('../data/libros.js').FilaLibro, ofrecido: import('../data/libros.js').FilaLibro }>}
+ */
+export async function bloquearLibrosDe(fila, tx) {
+  const ids = [fila.libro_solicitado_id, fila.libro_ofrecido_id].sort((a, b) => Number(a) - Number(b));
+  const bloqueados = new Map();
+  for (const id of ids) bloqueados.set(String(id), await bloquearLibro(id, tx));
+  return {
+    solicitado: bloqueados.get(String(fila.libro_solicitado_id)),
+    ofrecido: bloqueados.get(String(fila.libro_ofrecido_id)),
+  };
+}
+
+/**
+ * Verifica que el dueño de la publicacion pueda resolver la solicitud.
+ *
+ * - El solicitante intenta aceptar o rechazar -> 403 ACCESO_DENEGADO.
+ * - Ya no esta pendiente -> 409 ESTADO_INVALIDO.
+ *
+ * @param {import('../data/solicitudes.js').FilaSolicitudCompleta} fila
+ * @param {string} usuarioId
+ */
+function exigirPendienteDelDuenio(fila, usuarioId) {
+  if (parteDe(fila, usuarioId) !== 'propietario') {
+    throw accesoDenegado('Solo quien publicó el libro puede aceptar o rechazar la solicitud');
+  }
+  if (fila.estado !== 'pendiente') {
+    throw estadoInvalido('Esta solicitud ya no está pendiente');
+  }
+}
+
+/**
+ * Acepta una solicitud pendiente (RF-19, RF-22, CU-22). En una transaccion:
+ * reserva un ejemplar de cada libro, deja la publicacion `reservada` (sale de
+ * Explorar), rechaza las demas pendientes sobre ella y fija el plazo de
+ * confirmacion.
+ *
+ * - Un libro se quedo sin ejemplares disponibles -> 409 nombrandolo, sin
+ *   cambiar nada (CU-22 A2).
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor, ahora?: Date }} [opciones]
+ * @returns {Promise<Solicitud>}
+ */
+export async function aceptar(usuarioId, solicitudId, { ejecutar, ahora = new Date() } = {}) {
+  return enTransaccion(
+    async (tx) => {
+      const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
+      exigirPendienteDelDuenio(fila, usuarioId);
+
+      const publicacion = await bloquearPublicacion(fila.publicacion_id, tx);
+      if (publicacion.estado !== 'activa') {
+        throw estadoInvalido('La publicación ya no está disponible');
+      }
+
+      const { solicitado, ofrecido } = await bloquearLibrosDe(fila, tx);
+      if (solicitado.archivado_en || disponiblesDe(solicitado) < 1) {
+        throw estadoInvalido(`Ya no te quedan ejemplares disponibles de «${solicitado.titulo}»`, [
+          { campo: 'libroSolicitado', mensaje: 'Sin ejemplares disponibles' },
+        ]);
+      }
+      if (ofrecido.archivado_en || disponiblesDe(ofrecido) < 1) {
+        throw estadoInvalido(`«${ofrecido.titulo}» ya no tiene ejemplares disponibles`, [
+          { campo: 'libroOfrecido', mensaje: 'Sin ejemplares disponibles' },
+        ]);
+      }
+
+      await moverEjemplar(solicitado.id, 'reservar', tx);
+      await moverEjemplar(ofrecido.id, 'reservar', tx);
+      await cambiarEstadoPublicacion(publicacion.id, 'reservada', tx);
+      await cerrarPendientesDePublicacion(publicacion.id, 'rechazada', { excepto: solicitudId }, tx);
+      await marcarAceptada(solicitudId, await calcularVencimiento(ahora, { ejecutar: tx }), tx);
+
+      return vistaSolicitud(await buscarSolicitud(solicitudId, tx), usuarioId);
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * Rechaza una solicitud pendiente (RF-19, CU-22 A1). La publicacion sigue
+ * disponible y las demas pendientes no cambian.
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<Solicitud>}
+ */
+export async function rechazar(usuarioId, solicitudId, { ejecutar } = {}) {
+  return enTransaccion(
+    async (tx) => {
+      const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
+      exigirPendienteDelDuenio(fila, usuarioId);
+      await cerrarSolicitud(solicitudId, 'rechazada', {}, tx);
+      return vistaSolicitud(await buscarSolicitud(solicitudId, tx), usuarioId);
     },
     { ejecutar },
   );

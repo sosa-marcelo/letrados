@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { solicitar, vistaSolicitud, puedoCon, parteDe } from '../../src/domain/solicitudes.js';
+import {
+  solicitar,
+  vistaSolicitud,
+  puedoCon,
+  parteDe,
+  aceptar,
+  rechazar,
+} from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
@@ -142,5 +149,81 @@ describe('vistaSolicitud y puedoCon', () => {
     expect(Object.values(puedoCon(completada, '10')).some(Boolean)).toBe(false);
     expect(parteDe(fila, '99')).toBeNull();
     expect(Object.values(puedoCon(fila, '99')).some(Boolean)).toBe(false);
+  });
+});
+
+/** Estado de un libro por titulo. */
+async function libro(titulo) {
+  const { rows } = await ejecutar('SELECT cantidad_total, cantidad_reservada FROM libros WHERE titulo = $1', [titulo]);
+  return rows[0];
+}
+
+async function estadoPublicacion(id) {
+  return (await ejecutar('SELECT estado FROM publicaciones WHERE id = $1', [id])).rows[0].estado;
+}
+
+describe('aceptar y rechazar (RF-19, RF-22)', () => {
+  it('aceptar reserva 1 + 1, deja la publicacion reservada y fija el plazo de 24 h', async () => {
+    const s = await pedir();
+    const ahora = new Date('2026-11-12T10:00:00Z');
+    const aceptada = await aceptar(ana, s.id, { ejecutar, ahora });
+    expect(aceptada).toMatchObject({ estado: 'aceptada', soyPropietario: true, venceEn: '2026-11-13T10:00:00.000Z' });
+    expect(aceptada.puedo).toMatchObject({ aceptar: false, cancelar: true, confirmar: true });
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 1 });
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 1 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('reservada');
+  });
+
+  it('aceptar rechaza las demas pendientes sobre la publicacion', async () => {
+    const carla = String((await sembrarUsuario(ejecutar, { nombre: 'Carla', email: 'carla@ejemplo.com' })).id);
+    const aleph = await agregarLibro(carla, { titulo: 'El Aleph', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    const deBeto = await pedir();
+    const deCarla = await pedir(carla, aleph.id);
+    await aceptar(ana, deBeto.id, { ejecutar });
+    const { rows } = await ejecutar('SELECT estado FROM solicitudes WHERE id = $1', [deCarla.id]);
+    expect(rows[0].estado).toBe('rechazada');
+    expect(await libro('El Aleph')).toMatchObject({ cantidad_reservada: 0 });
+  });
+
+  it('si el libro ofrecido se quedo sin disponibles -> 409 nombrandolo y nada cambia (CU-22 A2)', async () => {
+    const s = await pedir();
+    await ejecutar(`UPDATE libros SET cantidad_reservada = 1 WHERE titulo = 'Ficciones'`);
+    const error = await errorDe(() => aceptar(ana, s.id, { ejecutar }));
+    expect(error).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
+    expect(error.message).toMatch(/«Ficciones» ya no tiene ejemplares/);
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('activa');
+    const { rows } = await ejecutar('SELECT estado FROM solicitudes WHERE id = $1', [s.id]);
+    expect(rows[0].estado).toBe('pendiente');
+  });
+
+  it('si al dueño no le quedan ejemplares -> 409 nombrando su libro', async () => {
+    const s = await pedir();
+    await ejecutar(`UPDATE libros SET cantidad_reservada = 1 WHERE titulo = 'Rayuela'`);
+    expect((await errorDe(() => aceptar(ana, s.id, { ejecutar }))).message).toMatch(/ejemplares disponibles de «Rayuela»/);
+  });
+
+  it('solo el dueño acepta o rechaza: el solicitante -> 403, un tercero -> 404', async () => {
+    const s = await pedir();
+    expect(await errorDe(() => aceptar(beto, s.id, { ejecutar }))).toMatchObject({ codigo: 'ACCESO_DENEGADO', estado: 403 });
+    expect(await errorDe(() => rechazar(beto, s.id, { ejecutar }))).toMatchObject({ codigo: 'ACCESO_DENEGADO' });
+    const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
+    expect(await errorDe(() => aceptar(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+    expect(await errorDe(() => aceptar(ana, '999', { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+
+  it('aceptar una no pendiente -> 409', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    expect(await errorDe(() => aceptar(ana, s.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+  });
+
+  it('rechazar deja la publicacion disponible y no reserva nada', async () => {
+    const s = await pedir();
+    const rechazada = await rechazar(ana, s.id, { ejecutar });
+    expect(rechazada).toMatchObject({ estado: 'rechazada' });
+    expect(Object.values(rechazada.puedo).some(Boolean)).toBe(false);
+    expect(await estadoPublicacion(publicacion.id)).toBe('activa');
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_reservada: 0 });
   });
 });
