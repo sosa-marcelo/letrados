@@ -132,3 +132,16 @@ describe('/api/solicitudes (LET-144)', () => {
     expect((await beto.yo.get('/api/solicitudes?rol=enviadas&estado=aceptada')).body.paginacion.total).toBe(0);
   });
 });
+
+describe('integracion con publicaciones y catalogo (LET-148)', () => {
+  it('cancelar una aceptada devuelve la publicacion a Explorar y libera los dos libros', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    expect((await request(app).get('/api/publicaciones')).body.paginacion.total).toBe(0);
+    expect((await beto.yo.get('/api/libros')).body.datos[0]).toMatchObject({ reservada: 1, disponible: 0 });
+
+    await beto.yo.post(`/api/solicitudes/${id}/cancelar`);
+    expect((await request(app).get('/api/publicaciones')).body.paginacion.total).toBe(1);
+    expect((await beto.yo.get('/api/libros')).body.datos[0]).toMatchObject({ reservada: 0, disponible: 1 });
+  });
+});

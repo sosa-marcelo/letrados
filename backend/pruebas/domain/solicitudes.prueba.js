@@ -417,3 +417,52 @@ describe('la baja de cuenta cancela operaciones y retira publicaciones (LET-147,
     expect((await ver(ana, s.id, { ejecutar })).estado).toBe('cancelada');
   });
 });
+
+describe('circuitos completos y bordes (LET-148)', () => {
+  async function carlaConLibro() {
+    const carla = String((await sembrarUsuario(ejecutar, { nombre: 'Carla', email: 'carla@ejemplo.com' })).id);
+    const aleph = await agregarLibro(carla, { titulo: 'El Aleph', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    return { carla, aleph };
+  }
+
+  it('dos solicitudes sobre la misma publicacion: aceptada una, la otra ya no se puede aceptar', async () => {
+    const { carla, aleph } = await carlaConLibro();
+    const deBeto = await pedir();
+    const deCarla = await pedir(carla, aleph.id);
+    await aceptar(ana, deBeto.id, { ejecutar });
+    expect(await errorDe(() => aceptar(ana, deCarla.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+    expect(await libro('El Aleph')).toMatchObject({ cantidad_reservada: 0 });
+  });
+
+  it('aceptar sobre una publicacion que ya no esta activa -> 409', async () => {
+    const s = await pedir();
+    await ejecutar(`UPDATE publicaciones SET estado = 'reservada' WHERE id = $1`, [publicacion.id]);
+    const error = await errorDe(() => aceptar(ana, s.id, { ejecutar }));
+    expect(error.message).toMatch(/ya no está disponible/);
+  });
+
+  it('cancelar una aceptada reabre la publicacion: otra persona la pide y el intercambio se completa', async () => {
+    const { carla, aleph } = await carlaConLibro();
+    const deBeto = await pedir();
+    await aceptar(ana, deBeto.id, { ejecutar });
+    await cancelar(beto, deBeto.id, { ejecutar });
+
+    const deCarla = await pedir(carla, aleph.id);
+    await aceptar(ana, deCarla.id, { ejecutar });
+    await confirmar(carla, deCarla.id, { ejecutar });
+    expect((await confirmar(ana, deCarla.id, { ejecutar })).estado).toBe('completada');
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 0, cantidad_reservada: 0 });
+    expect(await libro('El Aleph')).toMatchObject({ cantidad_total: 0, cantidad_reservada: 0 });
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 0 });
+  });
+
+  it('un mismo libro ofrecido en dos solicitudes: la segunda aceptacion falla si ya no hay ejemplares', async () => {
+    const { carla, aleph } = await carlaConLibro();
+    const otra = await publicar(carla, { libroId: aleph.id }, { ejecutar });
+    const aAna = await pedir();
+    const aCarla = await pedir(beto, ficciones.id, otra.id);
+    await aceptar(ana, aAna.id, { ejecutar });
+    const error = await errorDe(() => aceptar(carla, aCarla.id, { ejecutar }));
+    expect(error.message).toMatch(/«Ficciones» ya no tiene ejemplares/);
+  });
+});
