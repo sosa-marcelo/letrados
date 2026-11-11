@@ -311,6 +311,56 @@ export async function rechazar(usuarioId, solicitudId, { ejecutar } = {}) {
 }
 
 /**
+ * Cancela una operacion (RF-20, CU-23): cualquiera de las partes, mientras
+ * la solicitud este pendiente, aceptada o flagueada. Si ya habia reservas
+ * (aceptada o flagueada), libera un ejemplar de cada libro y devuelve la
+ * publicacion a `activa`, otra vez en Explorar. Guarda quien cancelo.
+ *
+ * - Rechazada, cancelada o completada -> 409 ESTADO_INVALIDO.
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<Solicitud>}
+ */
+export async function cancelar(usuarioId, solicitudId, { ejecutar } = {}) {
+  return enTransaccion(
+    async (tx) => {
+      const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
+      await cancelarBloqueada(fila, usuarioId, tx);
+      return vistaSolicitud(await buscarSolicitud(solicitudId, tx), usuarioId);
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * El cuerpo de `cancelar` sobre una solicitud ya bloqueada. Lo reusa la baja
+ * de cuenta (RF-09), que cancela varias dentro de su propia transaccion.
+ *
+ * @param {import('../data/solicitudes.js').FilaSolicitudCompleta} fila
+ * @param {string} usuarioId - quien cancela.
+ * @param {import('../data/solicitudes.js').Ejecutor} tx
+ */
+export async function cancelarBloqueada(fila, usuarioId, tx) {
+  if (!CANCELABLES.includes(fila.estado)) {
+    throw estadoInvalido('Esta solicitud ya no se puede cancelar');
+  }
+
+  if (fila.estado !== 'pendiente') {
+    const publicacion = await bloquearPublicacion(fila.publicacion_id, tx);
+    const { solicitado, ofrecido } = await bloquearLibrosDe(fila, tx);
+    await moverEjemplar(solicitado.id, 'liberar', tx);
+    await moverEjemplar(ofrecido.id, 'liberar', tx);
+    if (publicacion.estado === 'reservada') {
+      await cambiarEstadoPublicacion(publicacion.id, 'activa', tx);
+    }
+  }
+
+  await cerrarSolicitud(fila.id, 'cancelada', { canceladaPor: usuarioId }, tx);
+}
+
+/**
  * Error de solicitud inexistente o de la que el usuario no es parte. Nunca
  * 403: no se confirma que exista.
  *
