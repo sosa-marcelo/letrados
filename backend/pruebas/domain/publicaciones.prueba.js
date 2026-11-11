@@ -9,6 +9,9 @@ import {
   quitarFoto,
   verFoto,
   BYTES_MAX_FOTO,
+  listarActivas,
+  verPublicacion,
+  POR_PAGINA_MAX,
 } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
@@ -228,5 +231,59 @@ describe('fotos de la publicacion (LET-127)', () => {
     });
     await ejecutar(`UPDATE publicaciones SET estado = 'reservada' WHERE id = $1`, [p.id]);
     expect(await errorDe(() => quitarFoto(ana, p.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+  });
+});
+
+describe('listarActivas y verPublicacion (LET-128, RF-15 y RF-16)', () => {
+  it('sin sesion lista todo lo activo, del mas nuevo al mas viejo, sin esMia', async () => {
+    const ficciones = await agregarLibro(beto, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    const p1 = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const p2 = await publicar(beto, { libroId: ficciones.id }, { ejecutar });
+    const { datos, paginacion } = await listarActivas({}, { ejecutar });
+    expect(datos.map((p) => p.id)).toEqual([p2.id, p1.id]);
+    expect(datos.every((p) => p.esMia === false)).toBe(true);
+    expect(datos[0].propietario).toMatchObject({ id: beto, nombre: 'Beto', reputacion: { promedio: null, cantidad: 0 } });
+    expect(paginacion).toEqual({ pagina: 1, porPagina: 20, total: 2 });
+  });
+
+  it('con sesion, las propias vienen con esMia true', async () => {
+    const ficciones = await agregarLibro(beto, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await publicar(beto, { libroId: ficciones.id }, { ejecutar });
+    const { datos } = await listarActivas({}, { usuarioId: ana, ejecutar });
+    expect(Object.fromEntries(datos.map((p) => [p.libro.titulo, p.esMia]))).toEqual({
+      Rayuela: true,
+      Ficciones: false,
+    });
+  });
+
+  it('deja afuera las cuentas bloqueadas y los libros sin disponibles', async () => {
+    const ficciones = await agregarLibro(beto, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await publicar(beto, { libroId: ficciones.id }, { ejecutar });
+    await ejecutar(`UPDATE usuarios SET estado = 'bloqueada' WHERE id = $1`, [beto]);
+    await ejecutar('UPDATE libros SET cantidad_reservada = 2 WHERE id = $1', [rayuela.id]);
+    expect((await listarActivas({}, { ejecutar })).paginacion.total).toBe(0);
+  });
+
+  it('busca por titulo o autor y recorta la paginacion', async () => {
+    const ficciones = await agregarLibro(beto, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await publicar(beto, { libroId: ficciones.id }, { ejecutar });
+    expect((await listarActivas({ q: '  borg ' }, { ejecutar })).datos.map((p) => p.libro.titulo)).toEqual(['Ficciones']);
+    const { paginacion } = await listarActivas({ pagina: 'x', porPagina: 500 }, { ejecutar });
+    expect(paginacion).toMatchObject({ pagina: 1, porPagina: POR_PAGINA_MAX });
+  });
+
+  it('el detalle responde en cualquier estado, con esMia segun la sesion', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id, nota: 'En el centro' }, { ejecutar });
+    await retirar(ana, p.id, { ejecutar });
+    const visto = await verPublicacion(p.id, { ejecutar });
+    expect(visto).toMatchObject({ id: p.id, estado: 'retirada', nota: 'En el centro', esMia: false });
+    expect((await verPublicacion(p.id, { usuarioId: ana, ejecutar })).esMia).toBe(true);
+  });
+
+  it('el detalle de una inexistente -> 404', async () => {
+    expect(await errorDe(() => verPublicacion('999', { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
   });
 });

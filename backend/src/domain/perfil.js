@@ -11,6 +11,7 @@ import {
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
+import { reputacionDe } from './reputacion.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
@@ -19,21 +20,11 @@ import { archivarLibrosDeUsuario } from '../data/libros.js';
 /** Nombre que muestra una cuenta dada de baja (RF-09). */
 export const NOMBRE_CUENTA_ELIMINADA = 'Cuenta eliminada';
 
-/**
- * @typedef {{ promedio: number | null, cantidad: number }} Reputacion
- */
+/** @typedef {import('./reputacion.js').Reputacion} Reputacion */
 
-/**
- * Reputacion de un usuario (RF-26). Las valoraciones llegan con el modulo 5
- * (fuera del alcance del ciclo 2): hasta entonces nadie tiene valoraciones y
- * la pantalla muestra «Sin valoraciones».
- *
- * @param {string} _usuarioId
- * @returns {Promise<Reputacion>}
- */
-export async function reputacionDe(_usuarioId) {
-  return { promedio: null, cantidad: 0 };
-}
+// La reputacion vive en `reputacion.js` desde LET-128; se reexporta para no
+// romper a quien la importaba desde aca.
+export { reputacionDe };
 
 /**
  * Perfil propio (RF-05). Es el unico lugar donde el correo sale de la API, y
