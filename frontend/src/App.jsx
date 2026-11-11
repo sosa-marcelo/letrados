@@ -6,6 +6,7 @@ import RutaProtegida from './componentes/RutaProtegida.jsx'
 import RutaSinSesion from './componentes/RutaSinSesion.jsx'
 import { useSesion } from './contexto/Sesion.jsx'
 import AdminCuentas from './paginas/AdminCuentas.jsx'
+import AdminFlagueados from './paginas/AdminFlagueados.jsx'
 import ContrasenaNueva from './paginas/ContrasenaNueva.jsx'
 import Explorar from './paginas/Explorar.jsx'
 import Login from './paginas/Login.jsx'
@@ -35,6 +36,7 @@ import Solicitudes from './paginas/Solicitudes.jsx'
  *
  *   administrador
  *     /admin/cuentas       Listar, buscar, bloquear       tinta
+ *     /admin/flagueados    Intercambios flagueados (LET-160) tinta
  *
  * `/` es Explorar desde LET-132: pública, con o sin sesión. Hasta el ciclo 2
  * solo repartía entre /mis-libros y /login.
@@ -92,6 +94,14 @@ const rutas = [
     element: (
       <RutaAdmin>
         <AdminCuentas />
+      </RutaAdmin>
+    ),
+  },
+  {
+    path: '/admin/flagueados',
+    element: (
+      <RutaAdmin>
+        <AdminFlagueados />
       </RutaAdmin>
     ),
   },

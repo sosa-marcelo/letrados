@@ -85,9 +85,14 @@ export default function Barra() {
         Perfil
       </NavLink>
       {admin && (
-        <NavLink to="/admin/cuentas" className={claseEnlace}>
-          Administración
-        </NavLink>
+        <>
+          <NavLink to="/admin/cuentas" className={claseEnlace}>
+            Administración
+          </NavLink>
+          <NavLink to="/admin/flagueados" className={claseEnlace}>
+            Flagueados
+          </NavLink>
+        </>
       )}
     </>
   )
