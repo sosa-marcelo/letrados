@@ -2,10 +2,15 @@ import express, { Router } from 'express';
 
 import * as publicaciones from '../../domain/publicaciones.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { esIdValido } from '../validacion.js';
+import { sesionOpcional } from '../middlewares/sesionOpcional.js';
+import { esIdValido, validarPublicacion, validarNota } from '../validacion.js';
 
 /**
  * Rutas de las publicaciones (modulo 4, epica LET-113, RF-14 a RF-16).
+ *
+ * Explorar, el detalle y la foto son publicos: pasan por `sesionOpcional`,
+ * que solo sirve para marcar `esMia`. Publicar, cambiar la nota o la foto y
+ * retirar exigen sesion. Una publicacion ajena responde 404, no 403.
  *
  * La foto viaja como cuerpo binario, con su Content-Type (LET-127): sin
  * multipart ni librerias nuevas. `express.raw` se monta solo en la ruta que
@@ -15,6 +20,41 @@ import { esIdValido } from '../validacion.js';
 const rutasPublicaciones = Router();
 
 const leerFoto = express.raw({ type: publicaciones.TIPOS_FOTO, limit: '2mb' });
+
+// GET /api/publicaciones?q=&pagina=&porPagina= -> 200 { datos, paginacion }   (RF-15)
+rutasPublicaciones.get('/publicaciones', sesionOpcional, async (req, res) => {
+  const { q, pagina, porPagina } = req.query;
+  res.json(
+    await publicaciones.listarActivas({ q, pagina, porPagina }, { usuarioId: req.usuario?.id }),
+  );
+});
+
+// GET /api/publicaciones/:id -> 200 { publicacion } | 404   (RF-16)
+rutasPublicaciones.get('/publicaciones/:id', sesionOpcional, async (req, res) => {
+  const publicacion = await publicaciones.verPublicacion(idPublicacion(req.params.id), {
+    usuarioId: req.usuario?.id,
+  });
+  res.json({ publicacion });
+});
+
+// POST /api/publicaciones { libroId, nota? } -> 201 { publicacion } | 400 | 404 | 409   (RF-14)
+rutasPublicaciones.post('/publicaciones', autenticar, async (req, res) => {
+  const datos = validarPublicacion(req.body);
+  const publicacion = await publicaciones.publicar(req.usuario.id, datos);
+  res.status(201).json({ publicacion });
+});
+
+// PUT /api/publicaciones/:id { nota } -> 200 { publicacion } | 400 | 404 | 409   (RF-14)
+rutasPublicaciones.put('/publicaciones/:id', autenticar, async (req, res) => {
+  const id = idPublicacion(req.params.id);
+  const publicacion = await publicaciones.modificarNota(req.usuario.id, id, validarNota(req.body));
+  res.json({ publicacion });
+});
+
+// DELETE /api/publicaciones/:id -> 200 { resultado: 'retirada' } | 404 | 409   (RF-14)
+rutasPublicaciones.delete('/publicaciones/:id', autenticar, async (req, res) => {
+  res.json(await publicaciones.retirar(req.usuario.id, idPublicacion(req.params.id)));
+});
 
 // GET /api/publicaciones/:id/foto -> 200 bytes con su Content-Type | 404   (RF-16)
 rutasPublicaciones.get('/publicaciones/:id/foto', async (req, res) => {
