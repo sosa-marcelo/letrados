@@ -108,6 +108,49 @@ export async function bloquearLibroPropio(id, usuario_id, ejecutar = consultar) 
 }
 
 /**
+ * Lee un libro cualquiera (de quien sea, archivado o no) bloqueando la fila
+ * hasta el fin de la transaccion. Lo usan las solicitudes, que mueven
+ * ejemplares de dos dueños a la vez (LET-138).
+ *
+ * @param {string | number} id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<FilaLibro | null>}
+ */
+export async function bloquearLibro(id, ejecutar = consultar) {
+  const { rows } = await ejecutar(`SELECT ${COLUMNAS} FROM libros WHERE id = $1 FOR UPDATE`, [id]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Mueve los ejemplares de un libro cuando una solicitud cambia de estado
+ * (LET-138, RF-19 a RF-21). Es la unica escritura de `cantidad_reservada`:
+ *
+ * - `reservar`:  reservada + 1                 (al aceptar)
+ * - `liberar`:   reservada - 1                 (al cancelar una aceptada)
+ * - `descontar`: total - 1 y reservada - 1     (al completar)
+ *
+ * La restriccion `reservada_no_supera_total` y los CHECK >= 0 lo sostienen en
+ * la base: un movimiento imposible falla en vez de dejar numeros invalidos.
+ *
+ * @param {string | number} id
+ * @param {'reservar' | 'liberar' | 'descontar'} movimiento
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<FilaLibro>}
+ */
+export async function moverEjemplar(id, movimiento, ejecutar = consultar) {
+  const cambios = {
+    reservar: 'cantidad_reservada = cantidad_reservada + 1',
+    liberar: 'cantidad_reservada = cantidad_reservada - 1',
+    descontar: 'cantidad_total = cantidad_total - 1, cantidad_reservada = cantidad_reservada - 1',
+  };
+  const { rows } = await ejecutar(
+    `UPDATE libros SET ${cambios[movimiento]} WHERE id = $1 RETURNING ${COLUMNAS}`,
+    [id],
+  );
+  return rows[0];
+}
+
+/**
  * Reemplaza todo lo que escribe el usuario: titulo, autor, cantidad total y
  * los seis datos opcionales (el que no viene queda en `null`). Nunca toca
  * `cantidad_reservada`: el modulo 3 solo la lee.
