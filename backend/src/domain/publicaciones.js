@@ -1,7 +1,8 @@
-import { noEncontrado, estadoInvalido } from './errores.js';
+import { noEncontrado, estadoInvalido, datosInvalidos, archivoDemasiadoGrande } from './errores.js';
 import { disponiblesDe } from './libros.js';
 import { enTransaccion } from '../infra/transaccion.js';
 import { bloquearLibroPropio } from '../data/libros.js';
+import { guardarFoto, borrarFoto, leerFoto } from '../data/fotos.js';
 import {
   insertarPublicacion,
   bloquearPublicacionPropia,
@@ -182,6 +183,76 @@ export async function retirar(usuarioId, publicacionId, { ejecutar } = {}) {
     },
     { ejecutar },
   );
+}
+
+/** Tipos de imagen admitidos para la foto (CHECK de la migracion 006). */
+export const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
+
+/** Tope de la foto: 2 MB. La API lo aplica al leer el cuerpo; aca se repite. */
+export const BYTES_MAX_FOTO = 2 * 1024 * 1024;
+
+/**
+ * Sube o reemplaza la foto de una publicacion propia y activa (RF-14). Se
+ * guarda en base64 (migracion 006).
+ *
+ * - Tipo no admitido o foto vacia -> 400 DATOS_INVALIDOS en el campo `foto`.
+ * - Mas de 2 MB -> 413 ARCHIVO_DEMASIADO_GRANDE.
+ *
+ * @param {string} usuarioId
+ * @param {string} publicacionId
+ * @param {{ tipo: string, bytes: Buffer }} foto
+ * @param {{ ejecutar?: import('../data/publicaciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<Publicacion>}
+ */
+export async function subirFoto(usuarioId, publicacionId, { tipo, bytes }, { ejecutar } = {}) {
+  if (!TIPOS_FOTO.includes(tipo) || !Buffer.isBuffer(bytes) || bytes.length === 0) {
+    throw datosInvalidos([{ campo: 'foto', mensaje: 'La foto tiene que ser una imagen JPEG, PNG o WebP' }]);
+  }
+  if (bytes.length > BYTES_MAX_FOTO) {
+    throw archivoDemasiadoGrande('La foto supera el máximo de 2 MB');
+  }
+
+  return enTransaccion(
+    async (tx) => {
+      await bloquearPublicacionModificable(usuarioId, publicacionId, tx);
+      await guardarFoto(publicacionId, { tipo, contenido: bytes.toString('base64') }, tx);
+      return vistaPublicacion(await buscarPublicacion(publicacionId, tx), { usuarioId });
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * Quita la foto de una publicacion propia y activa (RF-14). Sin foto no es
+ * error: el resultado es el mismo.
+ *
+ * @param {string} usuarioId
+ * @param {string} publicacionId
+ * @param {{ ejecutar?: import('../data/publicaciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<Publicacion>}
+ */
+export async function quitarFoto(usuarioId, publicacionId, { ejecutar } = {}) {
+  return enTransaccion(
+    async (tx) => {
+      await bloquearPublicacionModificable(usuarioId, publicacionId, tx);
+      await borrarFoto(publicacionId, tx);
+      return vistaPublicacion(await buscarPublicacion(publicacionId, tx), { usuarioId });
+    },
+    { ejecutar },
+  );
+}
+
+/**
+ * La foto de una publicacion, en cualquier estado (RF-16). Publica.
+ *
+ * @param {string} publicacionId
+ * @param {{ ejecutar?: import('../data/publicaciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<{ tipo: string, bytes: Buffer }>} 404 si no tiene foto.
+ */
+export async function verFoto(publicacionId, { ejecutar } = {}) {
+  const foto = await leerFoto(publicacionId, ejecutar);
+  if (!foto) throw noEncontrado('Esa publicación no tiene foto');
+  return { tipo: foto.tipo, bytes: Buffer.from(foto.contenido, 'base64') };
 }
 
 /**

@@ -139,6 +139,19 @@ export function noEncontrado(mensaje = 'No encontramos lo que buscabas') {
 }
 
 /**
+ * El cuerpo de la peticion supera el tamaño permitido (la foto de una
+ * publicacion pasa de 2 MB, LET-127).
+ *
+ * @param {string} [mensaje]
+ * @returns {ErrorDominio} 413 ARCHIVO_DEMASIADO_GRANDE
+ */
+export function archivoDemasiadoGrande(
+  mensaje = 'Lo que enviaste supera el tamaño máximo permitido',
+) {
+  return new ErrorDominio('ARCHIVO_DEMASIADO_GRANDE', 413, mensaje);
+}
+
+/**
  * La operacion no es legal para el estado actual del recurso.
  *
  * @param {string} mensaje

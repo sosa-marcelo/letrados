@@ -1,4 +1,4 @@
-import { ErrorDominio, jsonInvalido } from '../../domain/errores.js';
+import { ErrorDominio, jsonInvalido, archivoDemasiadoGrande } from '../../domain/errores.js';
 import { registrador } from '../../infra/registrador.js';
 
 /**
@@ -11,6 +11,8 @@ import { registrador } from '../../infra/registrador.js';
  * - Error del parseo de JSON (`entity.parse.failed`): 400 `JSON_INVALIDO`. Es
  *   culpa del cliente, no nuestra, asi que no puede salir como 500. El mensaje
  *   no repite lo que mando el cliente.
+ * - Cuerpo mas grande que el limite del parser (`entity.too.large`): 413
+ *   `ARCHIVO_DEMASIADO_GRANDE`. En `/foto` el mensaje nombra el tope de 2 MB.
  * - Cualquier otro error: 500 `ERROR_INTERNO` con un mensaje generico. Nunca se
  *   filtra al cliente el `stack` ni el detalle interno.
  * - Nunca se registra el cuerpo de la peticion (puede traer contrasenas o
@@ -23,6 +25,12 @@ export function manejadorErrores(error, req, res, _next) {
   // El body-parser avisa asi cuando el cuerpo no se pudo leer como JSON.
   if (error?.type === 'entity.parse.failed') {
     error = jsonInvalido();
+  }
+  // Y asi cuando el cuerpo supera el `limit` del parser (la foto, LET-127).
+  if (error?.type === 'entity.too.large') {
+    error = req.path.endsWith('/foto')
+      ? archivoDemasiadoGrande('La foto supera el máximo de 2 MB')
+      : archivoDemasiadoGrande();
   }
 
   const esDominio = error instanceof ErrorDominio;
