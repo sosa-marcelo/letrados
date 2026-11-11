@@ -159,3 +159,32 @@
   gap: 8px;
   margin-left: auto;
 }
+
+/* LET-152: a 480 px, menos relleno y las acciones a todo el ancho. */
+@media (max-width: 480px) {
+  .solicitudes__barra {
+    padding: 10px;
+  }
+
+  .solicitudes__pestana {
+    padding: 8px 14px;
+  }
+
+  .solicitud {
+    padding: 14px;
+  }
+
+  .solicitud__fecha {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .solicitud__acciones {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .solicitud__acciones > * {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
