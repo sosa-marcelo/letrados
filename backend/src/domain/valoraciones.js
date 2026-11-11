@@ -1,7 +1,8 @@
-import { estadoInvalido } from './errores.js';
+import { estadoInvalido, noEncontrado } from './errores.js';
 import { bloquearComoParte, parteDe } from './solicitudes.js';
 import { enTransaccion } from '../infra/transaccion.js';
-import { insertarValoracion, valoracionDe } from '../data/valoraciones.js';
+import { insertarValoracion, valoracionDe, valoracionesRecibidas } from '../data/valoraciones.js';
+import { buscarUsuarioPorId } from '../data/usuarios.js';
 
 /**
  * Valoraciones (modulo 5, epica LET-116, RF-25, CU-28). Despues de completar
@@ -74,4 +75,56 @@ export async function valorar(usuarioId, solicitudId, { puntaje, comentario = nu
     },
     { ejecutar },
   );
+}
+
+/** Tope de `porPagina`, como en el resto de la API. */
+const POR_PAGINA_MAX = 50;
+const POR_PAGINA_DEFECTO = 10;
+
+/**
+ * Valoraciones que recibio un usuario, para su perfil publico (RF-27,
+ * CU-29): puntaje, comentario, quien la escribio y el intercambio que la
+ * habilito, de la mas nueva a la mas vieja. Publico.
+ *
+ * - Cuenta inexistente -> 404. Una cuenta eliminada responde vacio, igual
+ *   que su perfil publico.
+ *
+ * @param {string} usuarioId - la cuenta valorada.
+ * @param {{ pagina?: number | string, porPagina?: number | string }} filtro
+ * @param {{ ejecutar?: import('../data/valoraciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<{ datos: object[], paginacion: { pagina: number, porPagina: number, total: number } }>}
+ */
+export async function listarRecibidas(usuarioId, { pagina, porPagina } = {}, { ejecutar } = {}) {
+  const cuenta = await buscarUsuarioPorId(usuarioId, ejecutar);
+  if (!cuenta) throw noEncontrado('No encontramos esa cuenta');
+  const pag = recortar(pagina, 1, Number.MAX_SAFE_INTEGER, 1);
+  const tam = recortar(porPagina, 1, POR_PAGINA_MAX, POR_PAGINA_DEFECTO);
+  if (cuenta.estado === 'eliminada') {
+    return { datos: [], paginacion: { pagina: pag, porPagina: tam, total: 0 } };
+  }
+
+  const { filas, total } = await valoracionesRecibidas(
+    usuarioId,
+    { limite: tam, desplazamiento: (pag - 1) * tam },
+    ejecutar,
+  );
+  return {
+    datos: filas.map((f) => ({
+      ...vistaValoracion(f),
+      autor: { id: String(f.autor_id), nombre: f.autor_nombre },
+      intercambio: {
+        id: String(f.solicitud_id),
+        libroSolicitado: { titulo: f.solicitado_titulo },
+        libroOfrecido: { titulo: f.ofrecido_titulo },
+      },
+    })),
+    paginacion: { pagina: pag, porPagina: tam, total },
+  };
+}
+
+/** Entero dentro de [min, max]; si no es un numero, el valor por defecto. */
+function recortar(valor, min, max, defecto) {
+  const n = Number.parseInt(valor, 10);
+  if (!Number.isFinite(n)) return defecto;
+  return Math.min(Math.max(n, min), max);
 }
