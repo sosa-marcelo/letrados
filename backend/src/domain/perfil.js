@@ -12,6 +12,8 @@ import {
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
 import { reputacionDe } from './reputacion.js';
+import { vistaPublicacion } from './publicaciones.js';
+import { publicacionesActivasDeUsuario } from '../data/publicaciones.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
@@ -54,12 +56,13 @@ export async function verPerfil(usuarioId, { ejecutar } = {}) {
  * - Cuenta eliminada (RF-09): 200 con «Cuenta eliminada», reputacion en cero y
  *   sin publicaciones. Un 404 romperia los enlaces del historial de terceros.
  * - Cuenta bloqueada: se muestra igual; el bloqueo impide el acceso, no borra a
- *   la persona.
- * - Las publicaciones llegan con el modulo 4: hasta entonces la lista es vacia.
+ *   la persona. Sus publicaciones no aparecen: Explorar tampoco las muestra.
+ * - Publicaciones (LET-130): las mismas que Explorar mostraria de esta cuenta,
+ *   con la forma de Explorar. Se ve como la ve cualquiera: `esMia` va en false.
  *
  * @param {string} usuarioId
  * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
- * @returns {Promise<{ id: string, nombre: string, eliminada: boolean, reputacion: Reputacion, publicaciones: object[] }>}
+ * @returns {Promise<{ id: string, nombre: string, eliminada: boolean, reputacion: Reputacion, publicaciones: import('./publicaciones.js').Publicacion[] }>}
  */
 export async function perfilPublico(usuarioId, { ejecutar } = {}) {
   const fila = await buscarUsuarioPorId(usuarioId, ejecutar);
@@ -75,12 +78,14 @@ export async function perfilPublico(usuarioId, { ejecutar } = {}) {
     };
   }
 
+  const reputacion = await reputacionDe(String(fila.id), { ejecutar });
+  const publicaciones = await publicacionesActivasDeUsuario(fila.id, ejecutar);
   return {
     id: String(fila.id),
     nombre: fila.nombre,
     eliminada: false,
-    reputacion: await reputacionDe(String(fila.id)),
-    publicaciones: [],
+    reputacion,
+    publicaciones: publicaciones.map((p) => vistaPublicacion(p, { reputacion })),
   };
 }
 
