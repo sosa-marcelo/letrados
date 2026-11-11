@@ -376,6 +376,56 @@ export function validarLibro(cuerpo = {}) {
   };
 }
 
+const LARGO_MAX_NOTA = 300;
+
+/**
+ * Nota opcional de una publicacion: recortada, hasta 300; vacia -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array<{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function notaOpcional(crudo, detalles) {
+  return textoOpcional(
+    crudo,
+    { campo: 'nota', etiqueta: 'La nota', maximo: LARGO_MAX_NOTA },
+    detalles,
+  );
+}
+
+/**
+ * Alta de una publicacion (RF-14, LET-129): el libro propio que se publica y
+ * una nota opcional. El id viaja como texto o numero (lo que mande el cliente).
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ libroId: string, nota: string | null }}
+ */
+export function validarPublicacion(cuerpo = {}) {
+  const detalles = [];
+  const crudo = cuerpo.libroId;
+  const libroId = typeof crudo === 'number' || typeof crudo === 'string' ? String(crudo).trim() : '';
+  if (!esIdValido(libroId)) {
+    detalles.push({ campo: 'libroId', mensaje: 'Elegí un libro de tu catálogo' });
+  }
+  const nota = notaOpcional(cuerpo.nota, detalles);
+  lanzarSiHay(detalles);
+  return { libroId, nota };
+}
+
+/**
+ * Cambio de la nota de una publicacion (RF-14, LET-129). Reemplazo: si no
+ * viene, queda en `null`.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @returns {{ nota: string | null }}
+ */
+export function validarNota(cuerpo = {}) {
+  const detalles = [];
+  const nota = notaOpcional(cuerpo.nota, detalles);
+  lanzarSiHay(detalles);
+  return { nota };
+}
+
 /**
  * Baja de cuenta (RF-09): pide la contrasena para volver a autenticarse.
  *

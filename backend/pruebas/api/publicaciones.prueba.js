@@ -135,3 +135,121 @@ describe('foto de la publicacion (LET-127, RF-14 y RF-16)', () => {
     expect((await request(app).get('/api/publicaciones/abc/foto')).status).toBe(404);
   });
 });
+
+/** Atajos con token para las rutas de publicaciones. */
+const conToken = (token) => ({
+  get: (url) => request(app).get(url).set('Authorization', `Bearer ${token}`),
+  post: (url, cuerpo) => request(app).post(url).set('Authorization', `Bearer ${token}`).send(cuerpo),
+  put: (url, cuerpo) => request(app).put(url).set('Authorization', `Bearer ${token}`).send(cuerpo),
+  del: (url) => request(app).delete(url).set('Authorization', `Bearer ${token}`),
+});
+
+/** Carga un libro y devuelve su id. */
+async function libroDe(token, titulo = 'Rayuela') {
+  const r = await conToken(token).post('/api/libros', { titulo, autor: 'Julio Cortázar', cantidad: 1 });
+  return r.body.libro.id;
+}
+
+describe('endpoints de /api/publicaciones (LET-129)', () => {
+  describe('GET /api/publicaciones (RF-15)', () => {
+    it('sin sesion -> 200 con las activas y esMia false', async () => {
+      await conPublicacion();
+      const r = await request(app).get('/api/publicaciones');
+      expect(r.status).toBe(200);
+      expect(r.body.paginacion).toMatchObject({ pagina: 1, total: 1 });
+      expect(r.body.datos[0]).toMatchObject({ estado: 'activa', esMia: false, libro: { titulo: 'Rayuela' } });
+    });
+
+    it('con sesion, la propia viene con esMia true; un token roto se ignora', async () => {
+      const { token } = await conPublicacion();
+      expect((await conToken(token).get('/api/publicaciones')).body.datos[0].esMia).toBe(true);
+      const roto = await request(app).get('/api/publicaciones').set('Authorization', 'Bearer roto');
+      expect(roto.status).toBe(200);
+      expect(roto.body.datos[0].esMia).toBe(false);
+    });
+
+    it('busca con q', async () => {
+      await conPublicacion();
+      expect((await request(app).get('/api/publicaciones?q=ficciones')).body.paginacion.total).toBe(0);
+      expect((await request(app).get('/api/publicaciones?q=RAYU')).body.paginacion.total).toBe(1);
+    });
+  });
+
+  describe('GET /api/publicaciones/:id (RF-16)', () => {
+    it('-> 200 con el detalle; inexistente o id invalido -> 404', async () => {
+      const { publicacion } = await conPublicacion();
+      const r = await request(app).get(`/api/publicaciones/${publicacion.id}`);
+      expect(r.status).toBe(200);
+      expect(r.body.publicacion).toMatchObject({ id: publicacion.id, libro: { disponible: 1 } });
+      expect((await request(app).get('/api/publicaciones/999')).status).toBe(404);
+      expect((await request(app).get('/api/publicaciones/abc')).status).toBe(404);
+    });
+  });
+
+  describe('POST /api/publicaciones (RF-14)', () => {
+    it('-> 201 con la publicacion y la nota recortada', async () => {
+      const { token } = await cuenta();
+      const libroId = await libroDe(token);
+      const r = await conToken(token).post('/api/publicaciones', { libroId, nota: '  En el centro ' });
+      expect(r.status).toBe(201);
+      expect(r.body.publicacion).toMatchObject({ estado: 'activa', nota: 'En el centro', esMia: true });
+    });
+
+    it('sin sesion -> 401', async () => {
+      expect((await request(app).post('/api/publicaciones').send({ libroId: '1' })).status).toBe(401);
+    });
+
+    it.each([[undefined], ['abc'], [0], [{}]])('libroId %j -> 400 en el campo libroId', async (libroId) => {
+      const { token } = await cuenta();
+      const r = await conToken(token).post('/api/publicaciones', { libroId });
+      expect(r.status).toBe(400);
+      expect(r.body.error.detalles.map((d) => d.campo)).toEqual(['libroId']);
+    });
+
+    it('nota de mas de 300 caracteres -> 400 en el campo nota', async () => {
+      const { token } = await cuenta();
+      const libroId = await libroDe(token);
+      const r = await conToken(token).post('/api/publicaciones', { libroId, nota: 'n'.repeat(301) });
+      expect(r.status).toBe(400);
+      expect(r.body.error.detalles.map((d) => d.campo)).toEqual(['nota']);
+    });
+
+    it('un libro ajeno -> 404; uno ya publicado -> 409', async () => {
+      const ana = await cuenta('ana@ejemplo.com');
+      const beto = await cuenta('beto@ejemplo.com');
+      const libroId = await libroDe(ana.token);
+      expect((await conToken(beto.token).post('/api/publicaciones', { libroId })).status).toBe(404);
+      expect((await conToken(ana.token).post('/api/publicaciones', { libroId })).status).toBe(201);
+      const otra = await conToken(ana.token).post('/api/publicaciones', { libroId });
+      expect(otra.status).toBe(409);
+      expect(otra.body.error.codigo).toBe('ESTADO_INVALIDO');
+    });
+  });
+
+  describe('PUT /api/publicaciones/:id (RF-14)', () => {
+    it('-> 200 con la nota nueva; sin nota la borra', async () => {
+      const { token, publicacion } = await conPublicacion();
+      const r = await conToken(token).put(`/api/publicaciones/${publicacion.id}`, { nota: 'Nueva' });
+      expect(r.status).toBe(200);
+      expect(r.body.publicacion.nota).toBe('Nueva');
+      expect((await conToken(token).put(`/api/publicaciones/${publicacion.id}`, {})).body.publicacion.nota).toBeNull();
+    });
+
+    it('una ajena -> 404', async () => {
+      const { publicacion } = await conPublicacion();
+      const beto = await cuenta('beto@ejemplo.com');
+      expect((await conToken(beto.token).put(`/api/publicaciones/${publicacion.id}`, { nota: 'x' })).status).toBe(404);
+    });
+  });
+
+  describe('DELETE /api/publicaciones/:id (RF-14)', () => {
+    it('-> 200 retirada; repetir -> 409; sale de Explorar', async () => {
+      const { token, publicacion } = await conPublicacion();
+      const r = await conToken(token).del(`/api/publicaciones/${publicacion.id}`);
+      expect(r.status).toBe(200);
+      expect(r.body).toEqual({ resultado: 'retirada' });
+      expect((await conToken(token).del(`/api/publicaciones/${publicacion.id}`)).status).toBe(409);
+      expect((await request(app).get('/api/publicaciones')).body.paginacion.total).toBe(0);
+    });
+  });
+});
