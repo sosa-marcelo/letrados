@@ -193,10 +193,22 @@ export default function MisLibros() {
   )
 }
 
+/**
+ * Línea secundaria de la ficha (LET-123): «Editorial · Año · Estado: …», solo
+ * con los datos que existan. Sin ninguno devuelve '' y la ficha no la dibuja.
+ */
+function datosDeFicha(libro) {
+  const estado = ESTADOS_CONSERVACION.find(([valor]) => valor === libro.estadoConservacion)
+  return [libro.editorial, libro.anio, estado && `Estado: ${estado[1].toLowerCase()}`]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 /** Una ficha del catálogo con los tres números. */
 function FichaLibro({ libro, alEditar, alRetirar }) {
   const sinDisponibles = libro.disponible <= 0
   const pistaPublicar = sinDisponibles ? 'Sin ejemplares disponibles' : 'Disponible en el próximo ciclo'
+  const datos = datosDeFicha(libro)
 
   return (
     <Ficha
@@ -225,6 +237,7 @@ function FichaLibro({ libro, alEditar, alRetirar }) {
         </>
       }
     >
+      {datos && <p className="libro__datos">{datos}</p>}
       <div className="libro__numeros">
         <span className={`libro__disponible ${sinDisponibles ? 'libro__disponible--cero' : ''}`.trim()}>
           {libro.disponible}
