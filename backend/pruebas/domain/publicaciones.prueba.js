@@ -5,6 +5,10 @@ import {
   modificarNota,
   retirar,
   vistaPublicacion,
+  subirFoto,
+  quitarFoto,
+  verFoto,
+  BYTES_MAX_FOTO,
 } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
@@ -165,5 +169,64 @@ describe('vistaPublicacion', () => {
     expect(vistaPublicacion(fila, { usuarioId: '3' }).esMia).toBe(true);
     expect(vistaPublicacion(fila, { usuarioId: '4' }).esMia).toBe(false);
     expect(vistaPublicacion(fila).libro).toMatchObject({ editorial: null, disponible: 1 });
+  });
+});
+
+describe('fotos de la publicacion (LET-127)', () => {
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+
+  it('subirFoto guarda la imagen y verFoto devuelve los mismos bytes', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const conFoto = await subirFoto(ana, p.id, { tipo: 'image/jpeg', bytes: JPEG }, { ejecutar });
+    expect(conFoto.tieneFoto).toBe(true);
+    const foto = await verFoto(p.id, { ejecutar });
+    expect(foto.tipo).toBe('image/jpeg');
+    expect(foto.bytes.equals(JPEG)).toBe(true);
+  });
+
+  it('subir otra la reemplaza', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await subirFoto(ana, p.id, { tipo: 'image/jpeg', bytes: JPEG }, { ejecutar });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    await subirFoto(ana, p.id, { tipo: 'image/png', bytes: png }, { ejecutar });
+    const foto = await verFoto(p.id, { ejecutar });
+    expect(foto.tipo).toBe('image/png');
+    expect(foto.bytes.equals(png)).toBe(true);
+  });
+
+  it('quitarFoto la borra y verFoto responde 404', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    await subirFoto(ana, p.id, { tipo: 'image/jpeg', bytes: JPEG }, { ejecutar });
+    expect((await quitarFoto(ana, p.id, { ejecutar })).tieneFoto).toBe(false);
+    expect(await errorDe(() => verFoto(p.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+
+  it.each([
+    ['image/gif', JPEG],
+    ['image/jpeg', Buffer.alloc(0)],
+    ['image/jpeg', undefined],
+  ])('tipo %s o cuerpo vacio -> 400 en el campo foto', async (tipo, bytes) => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const error = await errorDe(() => subirFoto(ana, p.id, { tipo, bytes }, { ejecutar }));
+    expect(error).toMatchObject({ codigo: 'DATOS_INVALIDOS', estado: 400 });
+    expect(error.detalles[0].campo).toBe('foto');
+  });
+
+  it('mas de 2 MB -> 413', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const grande = Buffer.alloc(BYTES_MAX_FOTO + 1);
+    expect(await errorDe(() => subirFoto(ana, p.id, { tipo: 'image/png', bytes: grande }, { ejecutar }))).toMatchObject({
+      codigo: 'ARCHIVO_DEMASIADO_GRANDE',
+      estado: 413,
+    });
+  });
+
+  it('en una ajena -> 404 y en una reservada -> 409', async () => {
+    const p = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    expect(await errorDe(() => subirFoto(beto, p.id, { tipo: 'image/jpeg', bytes: JPEG }, { ejecutar }))).toMatchObject({
+      codigo: 'NO_ENCONTRADO',
+    });
+    await ejecutar(`UPDATE publicaciones SET estado = 'reservada' WHERE id = $1`, [p.id]);
+    expect(await errorDe(() => quitarFoto(ana, p.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
   });
 });
