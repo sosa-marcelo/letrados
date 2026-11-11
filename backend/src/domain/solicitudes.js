@@ -66,6 +66,18 @@ const CANCELABLES = ['pendiente', 'aceptada', 'flagueada'];
 const CONFIRMABLES = ['aceptada', 'flagueada'];
 
 /**
+ * Lo que quien mira puede hacer con la solicitud.
+ *
+ * @typedef {object} PuedoSolicitud
+ * @property {boolean} aceptar
+ * @property {boolean} rechazar
+ * @property {boolean} cancelar
+ * @property {boolean} confirmar
+ * @property {boolean} reportar
+ * @property {boolean} valorar
+ */
+
+/**
  * @typedef {object} Solicitud
  * @property {string} id
  * @property {'pendiente' | 'aceptada' | 'rechazada' | 'cancelada' | 'completada' | 'flagueada'} estado
@@ -80,7 +92,7 @@ const CONFIRMABLES = ['aceptada', 'flagueada'];
  * @property {boolean} confirmadaPorMi
  * @property {boolean} confirmadaPorContraparte
  * @property {number | null} miValoracion - el puntaje que ya diste, si valoraste (RF-25).
- * @property {{ aceptar: boolean, rechazar: boolean, cancelar: boolean, confirmar: boolean, reportar: boolean, valorar: boolean }} puedo
+ * @property {PuedoSolicitud} puedo
  * @property {string} creadaEn
  */
 
@@ -116,7 +128,7 @@ function miValoracion(fila, parte) {
  *
  * @param {import('../data/solicitudes.js').FilaSolicitudCompleta} fila
  * @param {string} usuarioId
- * @returns {Solicitud['puedo']}
+ * @returns {PuedoSolicitud}
  */
 export function puedoCon(fila, usuarioId) {
   const parte = parteDe(fila, usuarioId);
