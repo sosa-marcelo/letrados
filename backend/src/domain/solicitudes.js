@@ -18,6 +18,7 @@ import {
   cerrarPendientesDePublicacion,
   marcarConfirmacion,
   listarSolicitudesDe,
+  flaguearVencidas as flaguearVencidasEnLaBase,
 } from '../data/solicitudes.js';
 
 /**
@@ -30,6 +31,26 @@ import {
  * bloquea siempre en el mismo orden: solicitud, publicacion y los dos libros
  * por id ascendente, para no generar interbloqueos.
  */
+
+/** Motivo fijo del flagueo (RF-23). */
+export const MOTIVO_FLAGUEO = 'Venció el plazo de confirmación sin la confirmación de ambas partes';
+
+/**
+ * El temporizador de CU-25 (LET-155). Vercel no corre procesos de fondo y su
+ * cron no baja de un minuto, asi que el plazo de 10 segundos de la demo no se
+ * cumpliria con un cron: en su lugar, antes de listar, ver o actuar sobre
+ * solicitudes (y de listar los flagueados) corre este barrido. Nadie puede
+ * ver una solicitud vencida sin flaguear.
+ *
+ * Corre fuera de la transaccion de la accion: es un UPDATE idempotente y asi
+ * no se mezcla con el orden de bloqueos de la accion.
+ *
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<number>} cuantas flagueo.
+ */
+export async function flaguearVencidas({ ejecutar } = {}) {
+  return flaguearVencidasEnLaBase(MOTIVO_FLAGUEO, ejecutar);
+}
 
 /** Todos los estados de una solicitud, para el filtro del listado. */
 export const ESTADOS = ['pendiente', 'aceptada', 'rechazada', 'cancelada', 'completada', 'flagueada'];
@@ -54,6 +75,8 @@ const CONFIRMABLES = ['aceptada', 'flagueada'];
  * @property {{ id: string, titulo: string, autor: string }} libroSolicitado - el de la publicacion.
  * @property {{ id: string, titulo: string, autor: string }} libroOfrecido - el del solicitante.
  * @property {string | null} venceEn - plazo de confirmacion (RF-22).
+ * @property {string | null} flagueadaEn - cuando vencio sin las dos confirmaciones (RF-23).
+ * @property {string | null} motivoFlagueo
  * @property {boolean} confirmadaPorMi
  * @property {boolean} confirmadaPorContraparte
  * @property {{ aceptar: boolean, rechazar: boolean, cancelar: boolean, confirmar: boolean, reportar: boolean, valorar: boolean }} puedo
@@ -125,6 +148,8 @@ export function vistaSolicitud(fila, usuarioId) {
       autor: fila.ofrecido_autor,
     },
     venceEn: fecha(fila.vence_en),
+    flagueadaEn: fecha(fila.flagueada_en),
+    motivoFlagueo: fila.motivo_flagueo ?? null,
     confirmadaPorMi: Boolean(
       soyPropietario ? fila.confirmada_propietario_en : fila.confirmada_solicitante_en,
     ),
@@ -264,6 +289,7 @@ function exigirPendienteDelDuenio(fila, usuarioId) {
  * @returns {Promise<Solicitud>}
  */
 export async function aceptar(usuarioId, solicitudId, { ejecutar, ahora = new Date() } = {}) {
+  await flaguearVencidas({ ejecutar });
   return enTransaccion(
     async (tx) => {
       const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
@@ -308,6 +334,7 @@ export async function aceptar(usuarioId, solicitudId, { ejecutar, ahora = new Da
  * @returns {Promise<Solicitud>}
  */
 export async function rechazar(usuarioId, solicitudId, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
   return enTransaccion(
     async (tx) => {
       const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
@@ -333,6 +360,7 @@ export async function rechazar(usuarioId, solicitudId, { ejecutar } = {}) {
  * @returns {Promise<Solicitud>}
  */
 export async function cancelar(usuarioId, solicitudId, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
   return enTransaccion(
     async (tx) => {
       const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
@@ -383,6 +411,7 @@ export async function cancelarBloqueada(fila, usuarioId, tx) {
  * @returns {Promise<Solicitud>}
  */
 export async function confirmar(usuarioId, solicitudId, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
   return enTransaccion(
     async (tx) => {
       const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
@@ -422,6 +451,7 @@ export async function confirmar(usuarioId, solicitudId, { ejecutar } = {}) {
  * @returns {Promise<{ datos: Solicitud[], paginacion: { pagina: number, porPagina: number, total: number } }>}
  */
 export async function listar(usuarioId, { rol, estado, pagina, porPagina } = {}, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
   const pag = recortar(pagina, 1, Number.MAX_SAFE_INTEGER, 1);
   const tam = recortar(porPagina, 1, POR_PAGINA_MAX, POR_PAGINA_DEFECTO);
   const { filas, total } = await listarSolicitudesDe(
@@ -449,6 +479,7 @@ export async function listar(usuarioId, { rol, estado, pagina, porPagina } = {},
  * @returns {Promise<Solicitud>} 404 si no existe o no es parte.
  */
 export async function ver(usuarioId, solicitudId, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
   const fila = await buscarSolicitud(solicitudId, ejecutar);
   if (!fila || !parteDe(fila, usuarioId)) throw solicitudNoEncontrada();
   return vistaSolicitud(fila, usuarioId);
