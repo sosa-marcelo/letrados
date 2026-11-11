@@ -32,6 +32,12 @@ rutasAdmin.delete('/admin/cuentas/:id/bloqueo', async (req, res) => {
   res.json({ cuenta });
 });
 
+// GET /api/admin/flagueados?estado=flagueada|todos&pagina=&porPagina= -> 200 { datos, paginacion }   (RF-23, RF-24)
+rutasAdmin.get('/admin/flagueados', async (req, res) => {
+  const { estado, pagina, porPagina } = req.query;
+  res.json(await admin.listarFlagueados({ estado, pagina, porPagina }));
+});
+
 function idCuenta(crudo) {
   if (!esIdValido(crudo)) throw noEncontrado('No encontramos esa cuenta');
   return crudo;

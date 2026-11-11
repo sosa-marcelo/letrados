@@ -296,3 +296,28 @@ export async function flaguearVencidas(motivo, ejecutar = consultar) {
   );
   return rowCount ?? 0;
 }
+
+/**
+ * Los intercambios que alguna vez se flaguearon (RF-23, LET-157), del mas
+ * reciente al mas viejo, con su estado actual. `soloFlagueadas` deja los que
+ * siguen flagueados (el filtro por defecto del panel).
+ *
+ * @param {{ soloFlagueadas: boolean, limite: number, desplazamiento: number }} opciones
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<{ filas: FilaSolicitudCompleta[], total: number }>}
+ */
+export async function listarFlagueadas({ soloFlagueadas, limite, desplazamiento }, ejecutar = consultar) {
+  const filtro = soloFlagueadas
+    ? "s.flagueada_en IS NOT NULL AND s.estado = 'flagueada'"
+    : 's.flagueada_en IS NOT NULL';
+  const { rows: conteo } = await ejecutar(
+    `SELECT count(*)::int AS total FROM solicitudes s WHERE ${filtro}`,
+  );
+  const { rows } = await ejecutar(
+    `${SELECT_COMPLETA}
+      WHERE ${filtro}
+      ORDER BY s.flagueada_en DESC, s.id DESC
+      LIMIT ${Number(limite)} OFFSET ${Number(desplazamiento)}`,
+  );
+  return { filas: rows, total: conteo[0].total };
+}

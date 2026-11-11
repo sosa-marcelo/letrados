@@ -162,3 +162,20 @@ describe('POST /api/solicitudes/:id/reportes (LET-156, RF-24)', () => {
     expect(r.body.reporte).toMatchObject({ descripcion: 'No vino', autor: { id: beto.id } });
   });
 });
+
+describe('GET /api/admin/flagueados (LET-157)', () => {
+  it('un usuario comun -> 403; el administrador ve el flagueado con sus reportes', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    await estado.ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [id]);
+    await beto.yo.post(`/api/solicitudes/${id}/reportes`, { descripcion: 'No vino' });
+
+    expect((await beto.yo.get('/api/admin/flagueados')).status).toBe(403);
+
+    const admin = await cuenta('admin@ejemplo.com');
+    await estado.ejecutar(`UPDATE usuarios SET rol = 'administrador' WHERE id = $1`, [admin.id]);
+    const r = await conToken(admin.token).get('/api/admin/flagueados');
+    expect(r.status).toBe(200);
+    expect(r.body.datos[0]).toMatchObject({ id, estado: 'flagueada', reportes: [{ descripcion: 'No vino' }] });
+  });
+});
