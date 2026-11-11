@@ -2,9 +2,9 @@ import { useParams } from 'react-router-dom'
 
 import Boton from '../componentes/Boton.jsx'
 import { Cargando, ErrorCarga, EsqueletoPapel } from '../componentes/Estados.jsx'
-import Ficha from '../componentes/Ficha.jsx'
 import Marco from '../componentes/Marco.jsx'
 import Reputacion from '../componentes/Reputacion.jsx'
+import TarjetaPublicacion from '../componentes/TarjetaPublicacion.jsx'
 import Vacio from '../componentes/Vacio.jsx'
 import { useSesion } from '../contexto/Sesion.jsx'
 import { NARANJA } from '../estilos/pleno.js'
@@ -19,7 +19,7 @@ import './PerfilPublico.css'
  * sesión (sin sesión, la barra ofrece «Entrar» y «Crear cuenta»).
  *
  *   Franja   inicial + nombre + Reputacion · cantidad de publicaciones
- *   Lienzo   publicaciones activas (Ficha) · valoraciones recibidas
+ *   Lienzo   publicaciones activas (TarjetaPublicacion, LET-135) · valoraciones recibidas
  *
  * Nunca muestra correo, rol ni estado: la API no los manda.
  *
@@ -116,15 +116,15 @@ export default function PerfilPublico() {
                 Publicaciones activas
               </h2>
               {usuario.publicaciones?.length ? (
-                <div className="grilla-fichas">
+                <div className="grilla-fichas grilla-publicaciones">
                   {usuario.publicaciones.map((p) => (
-                    <Ficha key={p.id} titulo={p.titulo} subtitulo={p.autor} />
+                    <TarjetaPublicacion key={p.id} publicacion={p} conDuenio={false} />
                   ))}
                 </div>
               ) : (
                 <Vacio
                   como="h3"
-                  titulo="Sin publicaciones activas"
+                  titulo={usuario.eliminada ? 'Sin publicaciones activas' : 'Todavía no publicó libros'}
                   texto={
                     usuario.eliminada
                       ? 'Las cuentas eliminadas no publican.'
