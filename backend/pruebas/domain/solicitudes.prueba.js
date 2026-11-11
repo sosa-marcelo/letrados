@@ -9,6 +9,8 @@ import {
   rechazar,
   cancelar,
   confirmar,
+  listar,
+  ver,
 } from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
@@ -326,5 +328,38 @@ describe('confirmar y completar (RF-21)', () => {
     await confirmar(ana, s.id, { ejecutar });
     await confirmar(beto, s.id, { ejecutar });
     expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 2, cantidad_reservada: 0 });
+  });
+});
+
+describe('listar y ver (RF-18)', () => {
+  it('el dueño la ve en recibidas con puedo.aceptar; el solicitante en enviadas sin el', async () => {
+    const s = await pedir();
+    const recibidas = await listar(ana, { rol: 'recibidas' }, { ejecutar });
+    expect(recibidas.datos.map((d) => d.id)).toEqual([s.id]);
+    expect(recibidas.datos[0].puedo.aceptar).toBe(true);
+    const enviadas = await listar(beto, { rol: 'enviadas' }, { ejecutar });
+    expect(enviadas.datos[0]).toMatchObject({ id: s.id, soyPropietario: false, puedo: { aceptar: false } });
+    expect((await listar(ana, { rol: 'enviadas' }, { ejecutar })).paginacion.total).toBe(0);
+  });
+
+  it('sin rol son las recibidas; un estado que no existe se ignora; el estado filtra', async () => {
+    await pedir();
+    expect((await listar(ana, {}, { ejecutar })).paginacion.total).toBe(1);
+    expect((await listar(ana, { estado: 'cualquiera' }, { ejecutar })).paginacion.total).toBe(1);
+    expect((await listar(ana, { estado: 'aceptada' }, { ejecutar })).paginacion.total).toBe(0);
+  });
+
+  it('recorta la paginacion', async () => {
+    const { paginacion } = await listar(ana, { pagina: 'x', porPagina: 999 }, { ejecutar });
+    expect(paginacion).toEqual({ pagina: 1, porPagina: 50, total: 0 });
+  });
+
+  it('ver: cada parte la ve; una ajena o inexistente -> 404', async () => {
+    const s = await pedir();
+    expect((await ver(ana, s.id, { ejecutar })).soyPropietario).toBe(true);
+    expect((await ver(beto, s.id, { ejecutar })).soyPropietario).toBe(false);
+    const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
+    expect(await errorDe(() => ver(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+    expect(await errorDe(() => ver(ana, '999', { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
   });
 });
