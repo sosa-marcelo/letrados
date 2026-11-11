@@ -151,3 +151,11 @@
   border-top: 1px solid var(--linea);
   font-size: 13.5px;
 }
+
+/* LET-151: acciones de la solicitud, a la derecha del pie. */
+.solicitud__acciones {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
