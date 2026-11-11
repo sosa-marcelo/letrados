@@ -186,6 +186,23 @@ export async function cambiarEstadoPublicacion(id, estado, ejecutar = consultar)
 }
 
 /**
+ * Retira todas las publicaciones vigentes (activa o reservada) de un usuario.
+ * Para la baja de cuenta (RF-09, LET-147).
+ *
+ * @param {string | number} usuario_id
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<number>} cuantas retiro.
+ */
+export async function retirarPublicacionesDeUsuario(usuario_id, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE publicaciones SET estado = 'retirada', cerrada_en = now()
+      WHERE usuario_id = $1 AND estado IN ('activa', 'reservada')`,
+    [usuario_id],
+  );
+  return rowCount ?? 0;
+}
+
+/**
  * Una publicacion con su libro, su dueño y si tiene foto, en cualquier estado.
  *
  * @param {string | number} id

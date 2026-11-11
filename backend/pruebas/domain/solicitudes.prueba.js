@@ -12,7 +12,9 @@ import {
   listar,
   ver,
 } from '../../src/domain/solicitudes.js';
-import { publicar, retirar } from '../../src/domain/publicaciones.js';
+import { publicar, retirar, listarActivas } from '../../src/domain/publicaciones.js';
+import { darDeBaja } from '../../src/domain/perfil.js';
+import { hashear } from '../../src/infra/hash.js';
 import { agregarLibro } from '../../src/domain/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
@@ -379,5 +381,39 @@ describe('retirar una publicacion cancela sus pendientes (LET-145)', () => {
     await aceptar(ana, s.id, { ejecutar });
     expect(await errorDe(() => retirar(ana, publicacion.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
     expect((await ver(beto, s.id, { ejecutar })).estado).toBe('aceptada');
+  });
+});
+
+describe('la baja de cuenta cancela operaciones y retira publicaciones (LET-147, RF-09)', () => {
+  async function conClave(usuarioId) {
+    await ejecutar('UPDATE usuarios SET contrasena_hash = $2 WHERE id = $1', [usuarioId, await hashear('unaclave1')]);
+  }
+
+  it('si se va el solicitante de una aceptada, la contraparte recupera su ejemplar y su publicacion vuelve a Explorar', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    await conClave(beto);
+    await darDeBaja(beto, { contrasena: 'unaclave1' }, { ejecutar });
+    expect((await ver(ana, s.id, { ejecutar })).estado).toBe('cancelada');
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('activa');
+    expect((await listarActivas({}, { ejecutar })).paginacion.total).toBe(1);
+  });
+
+  it('si se va el dueño, sus publicaciones se retiran y el solicitante recupera su libro', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    await conClave(ana);
+    await darDeBaja(ana, { contrasena: 'unaclave1' }, { ejecutar });
+    expect((await ver(beto, s.id, { ejecutar })).estado).toBe('cancelada');
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('retirada');
+  });
+
+  it('las pendientes tambien se cancelan', async () => {
+    const s = await pedir();
+    await conClave(beto);
+    await darDeBaja(beto, { contrasena: 'unaclave1' }, { ejecutar });
+    expect((await ver(ana, s.id, { ejecutar })).estado).toBe('cancelada');
   });
 });
