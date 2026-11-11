@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import Aviso from '../componentes/Aviso.jsx'
 import Boton from '../componentes/Boton.jsx'
+import Campo from '../componentes/Campo.jsx'
 import Chip from '../componentes/Chip.jsx'
 import Dialogo from '../componentes/Dialogo.jsx'
 import { Cargando, ErrorCarga, EsqueletoFilas } from '../componentes/Estados.jsx'
@@ -185,7 +186,18 @@ export default function Solicitudes() {
         )}
       </section>
 
-      {accion && (
+      {accion?.tipo === 'reportar' && (
+        <DialogoReporte
+          solicitud={accion.solicitud}
+          alCerrar={() => setAccion(null)}
+          alEnviar={() => {
+            setAccion(null)
+            setAviso('Enviamos tu reporte. Lo revisa el equipo de administración.')
+          }}
+        />
+      )}
+
+      {accion && accion.tipo !== 'reportar' && (
         <DialogoAccion
           {...accion}
           alCerrar={() => setAccion(null)}
@@ -267,7 +279,9 @@ function FilaSolicitud({ solicitud, children }) {
 /** Los botones que la API habilita para esta solicitud (`puedo`). */
 function AccionesSolicitud({ solicitud, alElegir }) {
   const { puedo } = solicitud
-  if (!puedo.aceptar && !puedo.rechazar && !puedo.confirmar && !puedo.cancelar) return null
+  if (!puedo.aceptar && !puedo.rechazar && !puedo.confirmar && !puedo.cancelar && !puedo.reportar) {
+    return null
+  }
   return (
     <span className="solicitud__acciones">
       {puedo.aceptar && (
@@ -283,6 +297,11 @@ function AccionesSolicitud({ solicitud, alElegir }) {
       {puedo.rechazar && (
         <Boton tamano="chico" onClick={() => alElegir('rechazar')}>
           Rechazar
+        </Boton>
+      )}
+      {puedo.reportar && (
+        <Boton tamano="chico" onClick={() => alElegir('reportar')}>
+          Reportar un inconveniente
         </Boton>
       )}
       {puedo.cancelar && (
@@ -389,6 +408,76 @@ function DialogoAccion({ tipo, solicitud, alCerrar, alTerminar }) {
     >
       {error && <Aviso tipo="error">{error}</Aviso>}
       <p className="dialogo__texto">{textos.texto}</p>
+    </Dialogo>
+  )
+}
+
+const LARGO_REPORTE = 1000
+
+/*
+ * Reportar un inconveniente (LET-159, RF-24, CU-26): solo con el intercambio
+ * flagueado. El reporte queda vinculado al intercambio y a quien lo escribió,
+ * y el administrador lo lee en /admin/flagueados.
+ */
+function DialogoReporte({ solicitud, alCerrar, alEnviar }) {
+  const [descripcion, setDescripcion] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+  const [errorCampo, setErrorCampo] = useState(null)
+
+  async function confirmar(evento) {
+    evento.preventDefault()
+    setEnviando(true)
+    setError(null)
+    setErrorCampo(null)
+    try {
+      await enviar(`/solicitudes/${solicitud.id}/reportes`, { descripcion })
+      alEnviar()
+    } catch (e) {
+      setEnviando(false)
+      const delCampo = e?.detalles?.find?.((d) => d.campo === 'descripcion')
+      if (delCampo) setErrorCampo(delCampo.mensaje)
+      else setError(mensajeDeError(e))
+    }
+  }
+
+  return (
+    <Dialogo
+      abierto
+      titulo="Reportar un inconveniente"
+      alCerrar={alCerrar}
+      ocupado={enviando}
+      alEnviar={confirmar}
+      acciones={
+        <>
+          <Boton onClick={alCerrar} disabled={enviando}>
+            Descartar
+          </Boton>
+          <Boton tipo="submit" variante="naranja" cargando={enviando} textoCargando="Enviando…">
+            Enviar reporte
+          </Boton>
+        </>
+      }
+    >
+      {error && <Aviso tipo="error">{error}</Aviso>}
+      <p className="dialogo__texto">
+        Venció el plazo sin la confirmación de ambas partes. Contá qué pasó con el intercambio con{' '}
+        <b>{solicitud.contraparte.nombre}</b>: lo lee el equipo de administración.
+      </p>
+      <Campo
+        id="reporte-descripcion"
+        etiqueta="Qué pasó"
+        elemento="textarea"
+        valor={descripcion}
+        alCambiar={(e) => setDescripcion(e.target.value)}
+        error={errorCampo}
+        pista={`${descripcion.length}/${LARGO_REPORTE}`}
+        pleno={PLENO}
+        disabled={enviando}
+        maxLength={LARGO_REPORTE}
+        rows={5}
+        required
+      />
     </Dialogo>
   )
 }
