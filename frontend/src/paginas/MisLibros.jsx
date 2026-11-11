@@ -15,6 +15,7 @@ import { VERDE } from '../estilos/pleno.js'
 import { useCarga } from '../ganchos/useCarga.js'
 import { actualizar, conConsulta, eliminar, enviar, ErrorApi, obtener } from '../servicios/cliente.js'
 import { mapearDetalles, mensajeDeError } from '../servicios/errores.js'
+import { ESTADOS_CONSERVACION, lineaDeDatos } from '../servicios/libro.js'
 import './MisLibros.css'
 
 /*
@@ -193,22 +194,11 @@ export default function MisLibros() {
   )
 }
 
-/**
- * Línea secundaria de la ficha (LET-123): «Editorial · Año · Estado: …», solo
- * con los datos que existan. Sin ninguno devuelve '' y la ficha no la dibuja.
- */
-function datosDeFicha(libro) {
-  const estado = ESTADOS_CONSERVACION.find(([valor]) => valor === libro.estadoConservacion)
-  return [libro.editorial, libro.anio, estado && `Estado: ${estado[1].toLowerCase()}`]
-    .filter(Boolean)
-    .join(' · ')
-}
-
 /** Una ficha del catálogo con los tres números. */
 function FichaLibro({ libro, alEditar, alRetirar }) {
   const sinDisponibles = libro.disponible <= 0
   const pistaPublicar = sinDisponibles ? 'Sin ejemplares disponibles' : 'Disponible en el próximo ciclo'
-  const datos = datosDeFicha(libro)
+  const datos = lineaDeDatos(libro) // LET-123
 
   return (
     <Ficha
@@ -254,14 +244,6 @@ function FichaLibro({ libro, alEditar, alRetirar }) {
     </Ficha>
   )
 }
-
-/** Estados de conservación (LET-112), con el texto que ve la persona. */
-const ESTADOS_CONSERVACION = [
-  ['nuevo', 'Nuevo'],
-  ['muy_bueno', 'Muy bueno'],
-  ['bueno', 'Bueno'],
-  ['gastado', 'Gastado'],
-]
 
 /** Los seis datos opcionales del libro, en el orden del formulario. */
 const OPCIONALES = ['editorial', 'anio', 'edicion', 'isbn', 'estadoConservacion', 'descripcion']

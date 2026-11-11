@@ -72,6 +72,9 @@ export default function Barra() {
 
   const enlaces = usuario && (
     <>
+      <NavLink to="/" end className={claseEnlace}>
+        Explorar
+      </NavLink>
       <NavLink to="/mis-libros" className={claseEnlace}>
         Mis libros
       </NavLink>
