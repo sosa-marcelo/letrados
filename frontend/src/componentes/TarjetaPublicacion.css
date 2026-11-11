@@ -79,3 +79,9 @@
   font-size: 11.5px;
   font-weight: 700;
 }
+
+/* Grilla de publicaciones (Explorar y perfil público): la de .grilla-fichas,
+   con las tarjetas alineadas arriba porque no todas tienen nota. */
+.grilla-publicaciones {
+  align-items: start;
+}
