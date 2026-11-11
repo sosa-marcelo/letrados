@@ -188,3 +188,42 @@
     flex: 1 1 calc(50% - 8px);
   }
 }
+
+/* LET-167: valorar con estrellas. */
+.valorar__estrellas {
+  border: none;
+  margin: 0 0 var(--entre-campos);
+  padding: 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.valorar__estrellas legend {
+  margin-bottom: 6px;
+}
+
+.valorar__estrella {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 8px;
+  color: rgba(20, 20, 20, 0.35);
+  cursor: pointer;
+}
+
+.valorar__estrella--llena {
+  color: var(--naranja);
+}
+
+.valorar__estrella:focus-within {
+  outline: 3px solid var(--verde);
+  outline-offset: 1px;
+}
+
+.solicitud__valorada {
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--naranja);
+  gap: 4px;
+}

@@ -6,6 +6,7 @@ import Boton from '../componentes/Boton.jsx'
 import Campo from '../componentes/Campo.jsx'
 import Chip from '../componentes/Chip.jsx'
 import Dialogo from '../componentes/Dialogo.jsx'
+import { IconoEstrella } from '../componentes/Iconos.jsx'
 import { Cargando, ErrorCarga, EsqueletoFilas } from '../componentes/Estados.jsx'
 import Marco from '../componentes/Marco.jsx'
 import Paginador from '../componentes/Paginador.jsx'
@@ -186,6 +187,20 @@ export default function Solicitudes() {
         )}
       </section>
 
+      {accion?.tipo === 'valorar' && (
+        <DialogoValorar
+          solicitud={accion.solicitud}
+          alCerrar={() => setAccion(null)}
+          alEnviar={(puntaje) => {
+            setAccion(null)
+            setAviso(
+              `Valoraste a ${accion.solicitud.contraparte.nombre} con ${puntaje} ${puntaje === 1 ? 'estrella' : 'estrellas'}.`,
+            )
+            carga.recargar()
+          }}
+        />
+      )}
+
       {accion?.tipo === 'reportar' && (
         <DialogoReporte
           solicitud={accion.solicitud}
@@ -197,7 +212,7 @@ export default function Solicitudes() {
         />
       )}
 
-      {accion && accion.tipo !== 'reportar' && (
+      {accion && accion.tipo !== 'reportar' && accion.tipo !== 'valorar' && (
         <DialogoAccion
           {...accion}
           alCerrar={() => setAccion(null)}
@@ -279,11 +294,31 @@ function FilaSolicitud({ solicitud, children }) {
 /** Los botones que la API habilita para esta solicitud (`puedo`). */
 function AccionesSolicitud({ solicitud, alElegir }) {
   const { puedo } = solicitud
-  if (!puedo.aceptar && !puedo.rechazar && !puedo.confirmar && !puedo.cancelar && !puedo.reportar) {
+  if (solicitud.miValoracion) {
+    return (
+      <span className="solicitud__acciones solicitud__valorada">
+        Valoraste con {solicitud.miValoracion}{' '}
+        <IconoEstrella tam={13} />
+      </span>
+    )
+  }
+  if (
+    !puedo.aceptar &&
+    !puedo.rechazar &&
+    !puedo.confirmar &&
+    !puedo.cancelar &&
+    !puedo.reportar &&
+    !puedo.valorar
+  ) {
     return null
   }
   return (
     <span className="solicitud__acciones">
+      {puedo.valorar && (
+        <Boton tamano="chico" variante="naranja" onClick={() => alElegir('valorar')}>
+          Valorar a {solicitud.contraparte.nombre}
+        </Boton>
+      )}
       {puedo.aceptar && (
         <Boton tamano="chico" variante="naranja" onClick={() => alElegir('aceptar')}>
           Aceptar
@@ -477,6 +512,96 @@ function DialogoReporte({ solicitud, alCerrar, alEnviar }) {
         maxLength={LARGO_REPORTE}
         rows={5}
         required
+      />
+    </Dialogo>
+  )
+}
+
+const LARGO_COMENTARIO = 500
+
+/*
+ * Valorar a la contraparte (LET-167, RF-25, CU-28): cinco estrellas y un
+ * comentario opcional, una sola vez por intercambio completado. Las
+ * estrellas son radios: se eligen con el teclado igual que con el mouse.
+ */
+function DialogoValorar({ solicitud, alCerrar, alEnviar }) {
+  const [puntaje, setPuntaje] = useState(0)
+  const [comentario, setComentario] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function confirmar(evento) {
+    evento.preventDefault()
+    if (!puntaje) {
+      setError('Elegí de 1 a 5 estrellas.')
+      return
+    }
+    setEnviando(true)
+    setError(null)
+    try {
+      await enviar(`/solicitudes/${solicitud.id}/valoracion`, { puntaje, comentario })
+      alEnviar(puntaje)
+    } catch (e) {
+      setEnviando(false)
+      setError(mensajeDeError(e))
+    }
+  }
+
+  return (
+    <Dialogo
+      abierto
+      titulo={`Valorar a ${solicitud.contraparte.nombre}`}
+      alCerrar={alCerrar}
+      ocupado={enviando}
+      alEnviar={confirmar}
+      acciones={
+        <>
+          <Boton onClick={alCerrar} disabled={enviando}>
+            Descartar
+          </Boton>
+          <Boton tipo="submit" variante="naranja" cargando={enviando} textoCargando="Enviando…">
+            Enviar valoración
+          </Boton>
+        </>
+      }
+    >
+      {error && <Aviso tipo="error">{error}</Aviso>}
+      <p className="dialogo__texto">
+        ¿Cómo fue el intercambio? Se ve en su perfil público y no se puede cambiar después.
+      </p>
+      <fieldset className="valorar__estrellas" disabled={enviando}>
+        <legend className="campo__etiqueta">Puntaje</legend>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <label
+            key={n}
+            className={`valorar__estrella ${n <= puntaje ? 'valorar__estrella--llena' : ''}`.trim()}
+          >
+            <input
+              type="radio"
+              name="puntaje"
+              value={n}
+              checked={puntaje === n}
+              onChange={() => setPuntaje(n)}
+              className="solo-lector"
+            />
+            <IconoEstrella tam={30} llena={n <= puntaje} />
+            <span className="solo-lector">
+              {n} {n === 1 ? 'estrella' : 'estrellas'}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <Campo
+        id="valorar-comentario"
+        etiqueta="Comentario (opcional)"
+        elemento="textarea"
+        valor={comentario}
+        alCambiar={(e) => setComentario(e.target.value)}
+        pista={`${comentario.length}/${LARGO_COMENTARIO}`}
+        pleno={PLENO}
+        disabled={enviando}
+        maxLength={LARGO_COMENTARIO}
+        rows={3}
       />
     </Dialogo>
   )
