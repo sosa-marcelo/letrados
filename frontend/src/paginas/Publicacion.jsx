@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import Aviso from '../componentes/Aviso.jsx'
 import Boton from '../componentes/Boton.jsx'
@@ -42,9 +42,11 @@ export default function Publicacion() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { usuario } = useSesion()
+  const { state } = useLocation()
   const carga = useCarga(() => obtener(`/publicaciones/${id}`), [id, usuario?.id])
 
-  const [aviso, setAviso] = useState(null)
+  // Al llegar desde «Publicar» (LET-134) trae el aviso de lo que pasó.
+  const [aviso, setAviso] = useState(state?.aviso ?? null)
   const [dialogo, setDialogo] = useState(null) // 'nota' | 'retiro'
   const [versionFoto, setVersionFoto] = useState(0)
   const [vistaPrevia, setVistaPrevia] = useState(null) // object URL mientras sube

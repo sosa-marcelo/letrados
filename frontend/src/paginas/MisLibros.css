@@ -121,3 +121,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* LET-134: foto opcional al publicar. */
+.libro__foto {
+  margin-top: 4px;
+}
+
+.libro__foto-previa {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: var(--radio-campo);
+  margin: 6px 0 8px;
+  border: 1px solid var(--linea);
+}
+
+.libro__elegir-foto {
+  position: relative;
+  display: inline-block;
+  margin-top: 6px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.libro__elegir-foto:focus-within {
+  outline: 2px solid var(--naranja);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.libro__archivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
