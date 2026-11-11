@@ -58,3 +58,45 @@ export async function valoracionDe(solicitud_id, autor_id, ejecutar = consultar)
   );
   return rows[0] ?? null;
 }
+
+/**
+ * Valoracion recibida, con quien la escribio y el intercambio que la habilito
+ * (los dos titulos).
+ *
+ * @typedef {FilaValoracion & {
+ *   autor_nombre: string, solicitado_titulo: string, ofrecido_titulo: string
+ * }} FilaValoracionRecibida
+ */
+
+/**
+ * Las valoraciones que recibio un usuario (RF-27), de la mas nueva a la mas
+ * vieja. Una autora dada de baja ya figura como «Cuenta eliminada»: la baja
+ * anonimiza el nombre en la fila de usuarios.
+ *
+ * @param {string | number} valorado_id
+ * @param {{ limite: number, desplazamiento: number }} opciones
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<{ filas: FilaValoracionRecibida[], total: number }>}
+ */
+export async function valoracionesRecibidas(valorado_id, { limite, desplazamiento }, ejecutar = consultar) {
+  const { rows: conteo } = await ejecutar(
+    `SELECT count(*)::int AS total FROM valoraciones WHERE valorado_id = $1`,
+    [valorado_id],
+  );
+  const { rows } = await ejecutar(
+    `SELECT v.id, v.solicitud_id, v.autor_id, v.valorado_id, v.puntaje, v.comentario, v.creada_en,
+            u.nombre AS autor_nombre,
+            ls.titulo AS solicitado_titulo, lo.titulo AS ofrecido_titulo
+       FROM valoraciones v
+       JOIN usuarios u ON u.id = v.autor_id
+       JOIN solicitudes s ON s.id = v.solicitud_id
+       JOIN publicaciones p ON p.id = s.publicacion_id
+       JOIN libros ls ON ls.id = p.libro_id
+       JOIN libros lo ON lo.id = s.libro_ofrecido_id
+      WHERE v.valorado_id = $1
+      ORDER BY v.creada_en DESC, v.id DESC
+      LIMIT ${Number(limite)} OFFSET ${Number(desplazamiento)}`,
+    [valorado_id],
+  );
+  return { filas: rows, total: conteo[0].total };
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { valorar } from '../../src/domain/valoraciones.js';
+import { valorar, listarRecibidas } from '../../src/domain/valoraciones.js';
 import { solicitar, aceptar, confirmar, ver } from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
@@ -92,5 +92,35 @@ describe('validarValoracion', () => {
 
   it('comentario de mas de 500 -> 400 en comentario', () => {
     expect(() => validarValoracion({ puntaje: 5, comentario: 'c'.repeat(501) })).toThrow();
+  });
+});
+
+describe('valoraciones recibidas (LET-165, RF-27)', () => {
+  it('lista puntaje, comentario, autor y los dos titulos del intercambio', async () => {
+    await completada();
+    await valorar(beto, solicitud.id, { puntaje: 5, comentario: 'Muy puntual' }, { ejecutar });
+    const { datos, paginacion } = await listarRecibidas(ana, {}, { ejecutar });
+    expect(paginacion).toEqual({ pagina: 1, porPagina: 10, total: 1 });
+    expect(datos[0]).toMatchObject({
+      puntaje: 5,
+      comentario: 'Muy puntual',
+      autor: { id: beto, nombre: 'Beto' },
+      intercambio: { id: solicitud.id, libroSolicitado: { titulo: 'Rayuela' }, libroOfrecido: { titulo: 'Ficciones' } },
+    });
+    expect((await listarRecibidas(beto, {}, { ejecutar })).paginacion.total).toBe(0);
+  });
+
+  it('una autora dada de baja figura como «Cuenta eliminada»', async () => {
+    await completada();
+    await valorar(beto, solicitud.id, { puntaje: 3 }, { ejecutar });
+    await ejecutar(`UPDATE usuarios SET nombre = 'Cuenta eliminada', estado = 'eliminada' WHERE id = $1`, [beto]);
+    const [valoracion] = (await listarRecibidas(ana, {}, { ejecutar })).datos;
+    expect(valoracion.autor.nombre).toBe('Cuenta eliminada');
+  });
+
+  it('cuenta inexistente -> 404; cuenta eliminada -> vacio', async () => {
+    expect(await errorDe(() => listarRecibidas('999', {}, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+    await ejecutar(`UPDATE usuarios SET estado = 'eliminada' WHERE id = $1`, [ana]);
+    expect((await listarRecibidas(ana, {}, { ejecutar })).datos).toEqual([]);
   });
 });

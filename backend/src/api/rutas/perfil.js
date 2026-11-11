@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as perfil from '../../domain/perfil.js';
+import { listarRecibidas } from '../../domain/valoraciones.js';
 import { noEncontrado } from '../../domain/errores.js';
 import { autenticar } from '../middlewares/autenticar.js';
 import { validarBaja, esIdValido, validarNombrePerfil, validarCambioContrasena } from '../validacion.js';
@@ -26,6 +27,13 @@ rutasPerfil.delete('/perfil', autenticar, async (req, res) => {
 rutasPerfil.get('/usuarios/:id', async (req, res) => {
   if (!esIdValido(req.params.id)) throw noEncontrado('No encontramos esa cuenta');
   res.json({ usuario: await perfil.perfilPublico(req.params.id) });
+});
+
+// GET /api/usuarios/:id/valoraciones?pagina=&porPagina= -> 200 { datos, paginacion } | 404   (RF-27) · publico
+rutasPerfil.get('/usuarios/:id/valoraciones', async (req, res) => {
+  if (!esIdValido(req.params.id)) throw noEncontrado('No encontramos esa cuenta');
+  const { pagina, porPagina } = req.query;
+  res.json(await listarRecibidas(req.params.id, { pagina, porPagina }));
 });
 
 // PUT /api/perfil { nombre } -> 200 { perfil } | 400 DATOS_INVALIDOS | 401   (RF-05)
