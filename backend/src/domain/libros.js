@@ -32,6 +32,12 @@ const POR_PAGINA_DEFECTO = 20;
  * @property {number} total
  * @property {number} reservada
  * @property {number} disponible
+ * @property {string | null} editorial
+ * @property {number | null} anio - año de publicacion.
+ * @property {string | null} edicion
+ * @property {string | null} isbn
+ * @property {string | null} estadoConservacion - nuevo, muy_bueno, bueno o gastado.
+ * @property {string | null} descripcion
  * @property {boolean} publicado - si tiene una publicacion activa (modulo 4; hoy siempre false).
  * @property {boolean} tieneHistorial - si participo en intercambios completados (decide el texto del retiro).
  * @property {string} creadoEn
@@ -64,6 +70,12 @@ export function vistaLibro(fila, { publicado = false, tieneHistorial = false } =
     total: fila.cantidad_total,
     reservada: fila.cantidad_reservada,
     disponible: disponiblesDe(fila),
+    editorial: fila.editorial ?? null,
+    anio: fila.anio_publicacion ?? null,
+    edicion: fila.edicion ?? null,
+    isbn: fila.isbn ?? null,
+    estadoConservacion: fila.estado_conservacion ?? null,
+    descripcion: fila.descripcion ?? null,
     publicado,
     tieneHistorial,
     creadoEn: new Date(fila.creado_en).toISOString(),
@@ -71,20 +83,64 @@ export function vistaLibro(fila, { publicado = false, tieneHistorial = false } =
 }
 
 /**
+ * Lo que la API entrega ya validado para un alta o una modificacion
+ * (`validarLibro`). Los datos opcionales ausentes llegan en `null`.
+ *
+ * @typedef {object} DatosLibro
+ * @property {string} titulo
+ * @property {string} autor
+ * @property {number} cantidad
+ * @property {string | null} [editorial]
+ * @property {number | null} [anio]
+ * @property {string | null} [edicion]
+ * @property {string | null} [isbn]
+ * @property {string | null} [estadoConservacion]
+ * @property {string | null} [descripcion]
+ */
+
+/**
+ * Traduce los datos de la API a las columnas de `libros`.
+ *
+ * @param {DatosLibro} datos
+ * @returns {import('../data/libros.js').CamposLibro}
+ */
+function aCampos({
+  titulo,
+  autor,
+  cantidad,
+  editorial = null,
+  anio = null,
+  edicion = null,
+  isbn = null,
+  estadoConservacion = null,
+  descripcion = null,
+}) {
+  return {
+    titulo,
+    autor,
+    cantidad_total: cantidad,
+    editorial,
+    anio_publicacion: anio,
+    edicion,
+    isbn,
+    estado_conservacion: estadoConservacion,
+    descripcion,
+  };
+}
+
+/**
  * Alta de un libro (RF-10). La entrada ya viene validada por la API
- * (titulo y autor recortados, cantidad entera >= 1). No hay unicidad por
- * titulo: dos «Rayuela» del mismo dueño son legitimas (otra edicion, otro estado).
+ * (titulo y autor recortados, cantidad entera >= 1, datos opcionales en su
+ * formato o en `null`). No hay unicidad por titulo: dos «Rayuela» del mismo
+ * dueño son legitimas (otra edicion, otro estado).
  *
  * @param {string} usuarioId
- * @param {{ titulo: string, autor: string, cantidad: number }} datos
+ * @param {DatosLibro} datos
  * @param {{ ejecutar?: import('../data/libros.js').Ejecutor }} [opciones]
  * @returns {Promise<Libro>}
  */
-export async function agregarLibro(usuarioId, { titulo, autor, cantidad }, { ejecutar } = {}) {
-  const fila = await insertarLibro(
-    { usuario_id: usuarioId, titulo, autor, cantidad_total: cantidad },
-    ejecutar,
-  );
+export async function agregarLibro(usuarioId, datos, { ejecutar } = {}) {
+  const fila = await insertarLibro({ usuario_id: usuarioId, ...aCampos(datos) }, ejecutar);
   return vistaLibro(fila);
 }
 
@@ -96,36 +152,29 @@ export async function agregarLibro(usuarioId, { titulo, autor, cantidad }, { eje
  * - No existe, es de otro o esta archivado -> 404 NO_ENCONTRADO.
  * - `cantidad < cantidad_reservada` -> 409 ESTADO_INVALIDO con el numero.
  *
+ * El reemplazo incluye los datos opcionales: el que no viene queda en `null`.
+ *
  * @param {string} usuarioId
  * @param {string} libroId
- * @param {{ titulo: string, autor: string, cantidad: number }} datos
+ * @param {DatosLibro} datos
  * @param {{ ejecutar?: import('../data/libros.js').Ejecutor }} [opciones]
  * @returns {Promise<Libro>}
  */
-export async function modificarLibro(
-  usuarioId,
-  libroId,
-  { titulo, autor, cantidad },
-  { ejecutar } = {},
-) {
+export async function modificarLibro(usuarioId, libroId, datos, { ejecutar } = {}) {
   return enTransaccion(
     async (tx) => {
       const libro = await bloquearLibroPropio(libroId, usuarioId, tx);
       if (!libro) throw libroNoEncontrado();
 
       const minimo = libro.cantidad_reservada;
-      if (cantidad < minimo) {
+      if (datos.cantidad < minimo) {
         throw estadoInvalido(
           `Tenes ${minimo} ${minimo === 1 ? 'ejemplar reservado' : 'ejemplares reservados'} en intercambios aceptados. No podes bajar de ${minimo}.`,
           [{ campo: 'cantidad', mensaje: `El minimo es ${minimo}` }],
         );
       }
 
-      const fila = await actualizarLibro(
-        libroId,
-        { titulo, autor, cantidad_total: cantidad },
-        tx,
-      );
+      const fila = await actualizarLibro(libroId, aCampos(datos), tx);
       return vistaLibro(fila);
     },
     { ejecutar },
