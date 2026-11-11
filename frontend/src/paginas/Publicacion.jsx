@@ -14,7 +14,7 @@ import Vacio from '../componentes/Vacio.jsx'
 import { useSesion } from '../contexto/Sesion.jsx'
 import { NARANJA } from '../estilos/pleno.js'
 import { useCarga } from '../ganchos/useCarga.js'
-import { actualizar, eliminar, obtener, subirArchivo } from '../servicios/cliente.js'
+import { actualizar, conConsulta, eliminar, enviar, obtener, subirArchivo } from '../servicios/cliente.js'
 import { mensajeDeError } from '../servicios/errores.js'
 import { textoEstadoConservacion, urlFoto } from '../servicios/libro.js'
 import './Publicacion.css'
@@ -25,8 +25,8 @@ import './Publicacion.css'
  * historial no se rompen.
  *
  *   Franja   título y autor del libro · «Solicitar intercambio» si es ajena
- *            y está activa (sin sesión lleva a /login; el diálogo lo conecta
- *            la épica de solicitudes, LET-149)
+ *            y está activa: sin sesión lleva a /login; con sesión abre el
+ *            diálogo para ofrecer un libro propio (LET-149, RF-17, CU-20)
  *   Lienzo   foto grande · estado y disponibilidad · nota · datos del libro ·
  *            el dueño con su reputación
  *
@@ -47,7 +47,7 @@ export default function Publicacion() {
 
   // Al llegar desde «Publicar» (LET-134) trae el aviso de lo que pasó.
   const [aviso, setAviso] = useState(state?.aviso ?? null)
-  const [dialogo, setDialogo] = useState(null) // 'nota' | 'retiro'
+  const [dialogo, setDialogo] = useState(null) // 'nota' | 'retiro' | 'solicitar'
   const [versionFoto, setVersionFoto] = useState(0)
   const [vistaPrevia, setVistaPrevia] = useState(null) // object URL mientras sube
   const [subiendo, setSubiendo] = useState(false)
@@ -107,7 +107,12 @@ export default function Publicacion() {
   }
 
   function solicitar() {
-    if (!usuario) navigate('/login')
+    if (!usuario) {
+      navigate('/login')
+      return
+    }
+    setAviso(null)
+    setDialogo('solicitar')
   }
 
   const puedeSolicitar = publicacion && !publicacion.esMia && publicacion.estado === 'activa'
@@ -120,21 +125,23 @@ export default function Publicacion() {
       tituloPagina={publicacion?.libro.titulo ?? 'Publicación'}
       accion={
         puedeSolicitar ? (
-          <Pastilla
-            pleno={PLENO}
-            onClick={solicitar}
-            disabled={Boolean(usuario)}
-            title={usuario ? 'Las solicitudes se habilitan con el módulo de intercambios' : undefined}
-          >
+          <Pastilla pleno={PLENO} onClick={solicitar}>
             Solicitar intercambio
           </Pastilla>
         ) : undefined
       }
     >
-      {aviso && (
+      {aviso === 'solicitud-enviada' ? (
         <Aviso tipo="exito" alCerrar={() => setAviso(null)}>
-          <b>{aviso}</b>
+          <b>Solicitud enviada.</b> Seguila en <Link to="/solicitudes">Solicitudes</Link>: ahí vas a
+          ver si la aceptan.
         </Aviso>
+      ) : (
+        aviso && (
+          <Aviso tipo="exito" alCerrar={() => setAviso(null)}>
+            <b>{aviso}</b>
+          </Aviso>
+        )
       )}
 
       {carga.error ? (
@@ -237,6 +244,17 @@ export default function Publicacion() {
             reemplazar(nueva)
             setDialogo(null)
             setAviso('Guardamos la nota.')
+          }}
+        />
+      )}
+
+      {dialogo === 'solicitar' && publicacion && (
+        <DialogoSolicitar
+          publicacion={publicacion}
+          alCerrar={() => setDialogo(null)}
+          alEnviar={() => {
+            setDialogo(null)
+            setAviso('solicitud-enviada')
           }}
         />
       )}
@@ -397,6 +415,112 @@ function DialogoRetiro({ publicacion, alCerrar, alRetirar }) {
         <b>{publicacion.libro.titulo}</b> deja de verse en Explorar. El libro sigue en tu catálogo y
         lo podés volver a publicar cuando quieras.
       </p>
+    </Dialogo>
+  )
+}
+
+/*
+ * Solicitar un intercambio (LET-149, RF-17, CU-20): se ofrece exactamente un
+ * libro propio con al menos un ejemplar disponible. Sin ninguno, avisa y
+ * manda a Mis libros. Los 409 del servidor (ya hay una pendiente, el libro se
+ * quedó sin ejemplares, la publicación dejó de estar disponible) se muestran
+ * acá y el diálogo no se cierra.
+ */
+function DialogoSolicitar({ publicacion, alCerrar, alEnviar }) {
+  const carga = useCarga(() => obtener(conConsulta('/libros', { porPagina: 50 })), [])
+  const [elegido, setElegido] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+
+  const disponibles = (carga.datos?.datos ?? []).filter((libro) => libro.disponible >= 1)
+
+  async function confirmar(evento) {
+    evento.preventDefault()
+    if (!elegido) {
+      setError('Elegí el libro que ofrecés a cambio.')
+      return
+    }
+    setEnviando(true)
+    setError(null)
+    try {
+      await enviar('/solicitudes', { publicacionId: publicacion.id, libroOfrecidoId: elegido })
+      alEnviar()
+    } catch (e) {
+      setEnviando(false)
+      setError(mensajeDeError(e))
+    }
+  }
+
+  const sinLibros = carga.datos && disponibles.length === 0
+
+  return (
+    <Dialogo
+      abierto
+      titulo="Solicitar intercambio"
+      alCerrar={alCerrar}
+      ocupado={enviando}
+      alEnviar={confirmar}
+      acciones={
+        <>
+          <Boton onClick={alCerrar} disabled={enviando}>
+            {sinLibros ? 'Volver' : 'Descartar'}
+          </Boton>
+          {!sinLibros && (
+            <Boton
+              tipo="submit"
+              variante="naranja"
+              cargando={enviando}
+              textoCargando="Enviando…"
+              disabled={!carga.datos}
+            >
+              Enviar solicitud
+            </Boton>
+          )}
+        </>
+      }
+    >
+      {error && <Aviso tipo="error">{error}</Aviso>}
+      <p className="dialogo__texto">
+        Pedís <b>{publicacion.libro.titulo}</b> a {publicacion.propietario.nombre}. Elegí qué libro
+        de tu catálogo ofrecés a cambio.
+      </p>
+      {carga.error ? (
+        <Aviso tipo="error">
+          {mensajeDeError(carga.error, 'No pudimos cargar tu catálogo.')}{' '}
+          <button type="button" className="publicacion__enlace" onClick={carga.recargar}>
+            Reintentar
+          </button>
+        </Aviso>
+      ) : !carga.datos ? (
+        <p className="dialogo__texto">Cargando tu catálogo…</p>
+      ) : sinLibros ? (
+        <Aviso tipo="info">
+          No tenés libros con ejemplares disponibles para ofrecer.{' '}
+          <Link to="/mis-libros">Cargá uno en Mis libros</Link> y volvé.
+        </Aviso>
+      ) : (
+        <fieldset className="solicitar__opciones" disabled={enviando}>
+          <legend className="solo-lector">Libro que ofrecés</legend>
+          {disponibles.map((libro) => (
+            <label
+              key={libro.id}
+              className={`solicitar__opcion ${elegido === libro.id ? 'solicitar__opcion--elegida' : ''}`.trim()}
+            >
+              <input
+                type="radio"
+                name="libro-ofrecido"
+                value={libro.id}
+                checked={elegido === libro.id}
+                onChange={() => setElegido(libro.id)}
+              />
+              <span>
+                <b>{libro.titulo}</b>
+                <span className="solicitar__autor">{libro.autor}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
     </Dialogo>
   )
 }

@@ -68,3 +68,11 @@
   outline: 2px solid var(--naranja);
   outline-offset: 2px;
 }
+
+/* LET-149: los enlaces dentro de un aviso toman el color de su texto. */
+.aviso a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
