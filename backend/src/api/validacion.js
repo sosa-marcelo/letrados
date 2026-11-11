@@ -177,17 +177,136 @@ export function validarNombrePerfil(cuerpo = {}) {
 
 const LARGO_MAX_TITULO = 200;
 const LARGO_MAX_AUTOR = 200;
+const LARGO_MAX_EDITORIAL = 120;
+const LARGO_MAX_EDICION = 60;
+const LARGO_MAX_DESCRIPCION = 500;
+const ANIO_MINIMO = 1450;
+
+/** Valores admitidos para `estadoConservacion` (CHECK de la migracion 005). */
+export const ESTADOS_CONSERVACION = ['nuevo', 'muy_bueno', 'bueno', 'gastado'];
+
+// ISBN-10 (nueve digitos y un ultimo digito o X) o ISBN-13, ya sin separadores.
+const FORMATO_ISBN = /^(\d{9}[\dX]|\d{13})$/;
 
 /**
- * Alta y modificacion de un libro (RF-10, RF-11). Los tres campos completos
- * siempre: la modificacion es reemplazo, no parche.
+ * Texto opcional: ausente, `null` o vacio despues de recortar -> `null`.
+ * Otro tipo que no sea texto, o un largo mayor al tope, agrega un detalle.
+ *
+ * @param {unknown} crudo
+ * @param {{ campo: string, etiqueta: string, maximo: number }} regla
+ * @param {Array<{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function textoOpcional(crudo, { campo, etiqueta, maximo }, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  if (typeof crudo !== 'string') {
+    detalles.push({ campo, mensaje: `${etiqueta} debe ser texto` });
+    return null;
+  }
+  const texto = crudo.trim();
+  if (texto === '') return null;
+  if (texto.length > maximo) {
+    detalles.push({ campo, mensaje: `${etiqueta} no puede superar los ${maximo} caracteres` });
+  }
+  return texto;
+}
+
+/**
+ * Año de publicacion opcional: entero entre 1450 y el año actual. Acepta
+ * `1963` o `"1963"` (lo que manda un input); vacio -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array<{ campo: string, mensaje: string }>} detalles
+ * @returns {number | null}
+ */
+function anioOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  if (typeof crudo === 'string' && crudo.trim() === '') return null;
+
+  const esEnteroTexto = typeof crudo === 'string' && /^\s*\d+\s*$/.test(crudo);
+  const anio =
+    typeof crudo === 'number' ? crudo : esEnteroTexto ? Number.parseInt(crudo, 10) : NaN;
+  const actual = new Date().getFullYear();
+
+  if (!Number.isInteger(anio) || anio < ANIO_MINIMO || anio > actual) {
+    detalles.push({
+      campo: 'anio',
+      mensaje: `El año debe ser un número entero entre ${ANIO_MINIMO} y ${actual}`,
+    });
+    return null;
+  }
+  return anio;
+}
+
+/**
+ * ISBN opcional. Se quitan guiones y espacios, y la `x` final pasa a `X`.
+ * Solo se valida el formato: no se consulta ningun catalogo externo.
+ *
+ * @param {unknown} crudo
+ * @param {Array<{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function isbnOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  const mensaje = 'El ISBN debe tener 10 caracteres (el último puede ser X) o 13 dígitos';
+  if (typeof crudo !== 'string') {
+    detalles.push({ campo: 'isbn', mensaje });
+    return null;
+  }
+  const isbn = crudo.replace(/[\s-]/g, '').toUpperCase();
+  if (isbn === '') return null;
+  if (!FORMATO_ISBN.test(isbn)) {
+    detalles.push({ campo: 'isbn', mensaje });
+    return null;
+  }
+  return isbn;
+}
+
+/**
+ * Estado de conservacion opcional: uno de `ESTADOS_CONSERVACION`; vacio -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array<{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function estadoConservacionOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null || crudo === '') return null;
+  if (typeof crudo !== 'string' || !ESTADOS_CONSERVACION.includes(crudo)) {
+    detalles.push({
+      campo: 'estadoConservacion',
+      mensaje: 'El estado de conservación debe ser nuevo, muy_bueno, bueno o gastado',
+    });
+    return null;
+  }
+  return crudo;
+}
+
+/**
+ * @typedef {object} DatosLibro
+ * @property {string} titulo
+ * @property {string} autor
+ * @property {number} cantidad
+ * @property {string | null} editorial
+ * @property {number | null} anio
+ * @property {string | null} edicion
+ * @property {string | null} isbn - sin guiones ni espacios.
+ * @property {string | null} estadoConservacion
+ * @property {string | null} descripcion
+ */
+
+/**
+ * Alta y modificacion de un libro (RF-10, RF-11 v1.1). La modificacion es
+ * reemplazo, no parche: un dato opcional que no viene queda en `null`.
  *
  * - `titulo` y `autor`: obligatorios, hasta 200 caracteres, recortados.
  * - `cantidad`: entero >= 1. Se acepta `2` o `"2"` (lo que manda un input),
  *   no `2.5`, `"dos"` ni `0`.
+ * - Opcionales (LET-119): `editorial` (hasta 120), `anio` (entero entre 1450 y
+ *   el año actual), `edicion` (hasta 60), `isbn` (10 o 13, sin separadores),
+ *   `estadoConservacion` (`ESTADOS_CONSERVACION`) y `descripcion` (hasta 500).
  *
  * @param {Record<string, unknown>} cuerpo
- * @returns {{ titulo: string, autor: string, cantidad: number }}
+ * @returns {DatosLibro}
  */
 export function validarLibro(cuerpo = {}) {
   const detalles = [];
@@ -224,8 +343,37 @@ export function validarLibro(cuerpo = {}) {
     });
   }
 
+  const editorial = textoOpcional(
+    cuerpo.editorial,
+    { campo: 'editorial', etiqueta: 'La editorial', maximo: LARGO_MAX_EDITORIAL },
+    detalles,
+  );
+  const anio = anioOpcional(cuerpo.anio, detalles);
+  const edicion = textoOpcional(
+    cuerpo.edicion,
+    { campo: 'edicion', etiqueta: 'La edición', maximo: LARGO_MAX_EDICION },
+    detalles,
+  );
+  const isbn = isbnOpcional(cuerpo.isbn, detalles);
+  const estadoConservacion = estadoConservacionOpcional(cuerpo.estadoConservacion, detalles);
+  const descripcion = textoOpcional(
+    cuerpo.descripcion,
+    { campo: 'descripcion', etiqueta: 'La descripción', maximo: LARGO_MAX_DESCRIPCION },
+    detalles,
+  );
+
   lanzarSiHay(detalles);
-  return { titulo, autor, cantidad };
+  return {
+    titulo,
+    autor,
+    cantidad,
+    editorial,
+    anio,
+    edicion,
+    isbn,
+    estadoConservacion,
+    descripcion,
+  };
 }
 
 /**

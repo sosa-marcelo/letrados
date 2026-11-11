@@ -88,6 +88,19 @@ describe('POST /api/libros (RF-10)', () => {
     },
   );
 
+  it.each([
+    ['anio', 1300],
+    ['anio', 'dos mil'],
+    ['isbn', '97895007031345'],
+    ['estadoConservacion', 'roto'],
+  ])('%s %j -> 400 con detalle en su campo (LET-119)', async (campo, valor) => {
+    const yo = conToken(await cuenta());
+    const r = await yo.post('/api/libros', { ...RAYUELA, [campo]: valor });
+    expect(r.status).toBe(400);
+    expect(r.body.error.codigo).toBe('DATOS_INVALIDOS');
+    expect(r.body.error.detalles.map((d) => d.campo)).toEqual([campo]);
+  });
+
   it('sin titulo ni autor -> 400 con un detalle por campo', async () => {
     const yo = conToken(await cuenta());
     const r = await yo.post('/api/libros', { titulo: '  ', cantidad: 1 });
