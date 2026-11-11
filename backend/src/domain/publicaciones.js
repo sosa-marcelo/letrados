@@ -1,5 +1,6 @@
 import { noEncontrado, estadoInvalido, datosInvalidos, archivoDemasiadoGrande } from './errores.js';
 import { disponiblesDe } from './libros.js';
+import { SIN_VALORACIONES, reputacionDe, reputacionesDe } from './reputacion.js';
 import { enTransaccion } from '../infra/transaccion.js';
 import { bloquearLibroPropio } from '../data/libros.js';
 import { guardarFoto, borrarFoto, leerFoto } from '../data/fotos.js';
@@ -10,6 +11,7 @@ import {
   actualizarNota,
   cambiarEstadoPublicacion,
   buscarPublicacion,
+  listarPublicacionesActivas,
 } from '../data/publicaciones.js';
 
 /**
@@ -21,8 +23,9 @@ import {
  * `reservada` y `cerrada` los da el modulo de solicitudes (epica LET-114).
  */
 
-/** Reputacion de quien todavia no recibio valoraciones (RF-26). */
-const SIN_VALORACIONES = { promedio: null, cantidad: 0 };
+/** Tope de `porPagina` en Explorar, igual que el catalogo: un valor mayor se recorta. */
+export const POR_PAGINA_MAX = 50;
+const POR_PAGINA_DEFECTO = 20;
 
 /**
  * @typedef {object} Publicacion
@@ -75,6 +78,61 @@ export function vistaPublicacion(fila, { usuarioId = null, reputacion = SIN_VALO
     esMia: usuarioId != null && String(fila.usuario_id) === String(usuarioId),
     creadaEn: new Date(fila.creada_en).toISOString(),
   };
+}
+
+/**
+ * Explorar (RF-15): publicaciones activas de libros con ejemplares disponibles
+ * y de cuentas activas, de la mas nueva a la mas vieja, con busqueda por
+ * titulo o autor. Publico: con sesion, las propias vienen con `esMia: true`
+ * (la interfaz las marca «Tuya» y no ofrece solicitarlas). `pagina` y
+ * `porPagina` fuera de rango se recortan, no son error.
+ *
+ * @param {{ q?: string, pagina?: number | string, porPagina?: number | string }} filtro
+ * @param {{ usuarioId?: string | null, ejecutar?: import('../data/publicaciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<{ datos: Publicacion[], paginacion: { pagina: number, porPagina: number, total: number } }>}
+ */
+export async function listarActivas({ q, pagina, porPagina } = {}, { usuarioId = null, ejecutar } = {}) {
+  const pag = recortar(pagina, 1, Number.MAX_SAFE_INTEGER, 1);
+  const tam = recortar(porPagina, 1, POR_PAGINA_MAX, POR_PAGINA_DEFECTO);
+  const busqueda = typeof q === 'string' ? q.trim() : '';
+
+  const { filas, total } = await listarPublicacionesActivas(
+    { q: busqueda || undefined, limite: tam, desplazamiento: (pag - 1) * tam },
+    ejecutar,
+  );
+  const reputaciones = await reputacionesDe(
+    [...new Set(filas.map((f) => String(f.usuario_id)))],
+    { ejecutar },
+  );
+
+  return {
+    datos: filas.map((fila) =>
+      vistaPublicacion(fila, { usuarioId, reputacion: reputaciones.get(String(fila.usuario_id)) }),
+    ),
+    paginacion: { pagina: pag, porPagina: tam, total },
+  };
+}
+
+/**
+ * Detalle de una publicacion (RF-16), en cualquier estado, para que los
+ * enlaces del historial no se rompan. Publico.
+ *
+ * @param {string} publicacionId
+ * @param {{ usuarioId?: string | null, ejecutar?: import('../data/publicaciones.js').Ejecutor }} [opciones]
+ * @returns {Promise<Publicacion>} 404 NO_ENCONTRADO si no existe.
+ */
+export async function verPublicacion(publicacionId, { usuarioId = null, ejecutar } = {}) {
+  const fila = await buscarPublicacion(publicacionId, ejecutar);
+  if (!fila) throw publicacionNoEncontrada();
+  const reputacion = await reputacionDe(String(fila.usuario_id), { ejecutar });
+  return vistaPublicacion(fila, { usuarioId, reputacion });
+}
+
+/** Entero dentro de [min, max]; si no es un numero, el valor por defecto. */
+function recortar(valor, min, max, defecto) {
+  const n = Number.parseInt(valor, 10);
+  if (!Number.isFinite(n)) return defecto;
+  return Math.min(Math.max(n, min), max);
 }
 
 /**
