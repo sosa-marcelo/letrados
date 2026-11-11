@@ -17,6 +17,7 @@ import {
   cerrarSolicitud,
   cerrarPendientesDePublicacion,
   marcarConfirmacion,
+  listarSolicitudesDe,
 } from '../data/solicitudes.js';
 
 /**
@@ -29,6 +30,13 @@ import {
  * bloquea siempre en el mismo orden: solicitud, publicacion y los dos libros
  * por id ascendente, para no generar interbloqueos.
  */
+
+/** Todos los estados de una solicitud, para el filtro del listado. */
+export const ESTADOS = ['pendiente', 'aceptada', 'rechazada', 'cancelada', 'completada', 'flagueada'];
+
+/** Tope de `porPagina` en el listado, como en el resto de la API. */
+export const POR_PAGINA_MAX = 50;
+const POR_PAGINA_DEFECTO = 20;
 
 /** Estados en los que una parte todavia puede cancelar (RF-20). */
 const CANCELABLES = ['pendiente', 'aceptada', 'flagueada'];
@@ -400,6 +408,57 @@ export async function confirmar(usuarioId, solicitudId, { ejecutar } = {}) {
     },
     { ejecutar },
   );
+}
+
+/**
+ * Solicitudes del usuario (RF-18, CU-21): las `recibidas` sobre sus
+ * publicaciones (default) o las `enviadas`, de la mas nueva a la mas vieja.
+ * Un `estado` que no existe se ignora; `pagina` y `porPagina` fuera de rango
+ * se recortan, no son error.
+ *
+ * @param {string} usuarioId
+ * @param {{ rol?: string, estado?: string, pagina?: number | string, porPagina?: number | string }} filtro
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<{ datos: Solicitud[], paginacion: { pagina: number, porPagina: number, total: number } }>}
+ */
+export async function listar(usuarioId, { rol, estado, pagina, porPagina } = {}, { ejecutar } = {}) {
+  const pag = recortar(pagina, 1, Number.MAX_SAFE_INTEGER, 1);
+  const tam = recortar(porPagina, 1, POR_PAGINA_MAX, POR_PAGINA_DEFECTO);
+  const { filas, total } = await listarSolicitudesDe(
+    usuarioId,
+    {
+      rol: rol === 'enviadas' ? 'enviadas' : 'recibidas',
+      estado: ESTADOS.includes(estado) ? estado : undefined,
+      limite: tam,
+      desplazamiento: (pag - 1) * tam,
+    },
+    ejecutar,
+  );
+  return {
+    datos: filas.map((fila) => vistaSolicitud(fila, usuarioId)),
+    paginacion: { pagina: pag, porPagina: tam, total },
+  };
+}
+
+/**
+ * Una solicitud, vista por una de sus partes (RF-18).
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<Solicitud>} 404 si no existe o no es parte.
+ */
+export async function ver(usuarioId, solicitudId, { ejecutar } = {}) {
+  const fila = await buscarSolicitud(solicitudId, ejecutar);
+  if (!fila || !parteDe(fila, usuarioId)) throw solicitudNoEncontrada();
+  return vistaSolicitud(fila, usuarioId);
+}
+
+/** Entero dentro de [min, max]; si no es un numero, el valor por defecto. */
+function recortar(valor, min, max, defecto) {
+  const n = Number.parseInt(valor, 10);
+  if (!Number.isFinite(n)) return defecto;
+  return Math.min(Math.max(n, min), max);
 }
 
 /**
