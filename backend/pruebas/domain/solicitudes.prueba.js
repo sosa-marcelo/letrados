@@ -8,6 +8,7 @@ import {
   aceptar,
   rechazar,
   cancelar,
+  confirmar,
 } from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
@@ -267,5 +268,63 @@ describe('cancelar (RF-20)', () => {
     const s = await pedir();
     const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
     expect(await errorDe(() => cancelar(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+});
+
+describe('confirmar y completar (RF-21)', () => {
+  async function aceptada() {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    return s;
+  }
+
+  it('la primera confirmacion deja la solicitud aceptada y lo muestra a las dos partes', async () => {
+    const s = await aceptada();
+    const vista = await confirmar(beto, s.id, { ejecutar });
+    expect(vista).toMatchObject({ estado: 'aceptada', confirmadaPorMi: true, confirmadaPorContraparte: false });
+    expect(vista.puedo.confirmar).toBe(false);
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 1 });
+  });
+
+  it('la segunda la completa: descuenta 1 + 1 y cierra la publicacion', async () => {
+    const s = await aceptada();
+    await confirmar(beto, s.id, { ejecutar });
+    const vista = await confirmar(ana, s.id, { ejecutar });
+    expect(vista).toMatchObject({ estado: 'completada', confirmadaPorMi: true, confirmadaPorContraparte: true });
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 0, cantidad_reservada: 0 });
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_total: 0, cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('cerrada');
+    const { rows } = await ejecutar('SELECT cerrada_en FROM solicitudes WHERE id = $1', [s.id]);
+    expect(rows[0].cerrada_en).toBeInstanceOf(Date);
+  });
+
+  it('una flagueada tambien se confirma y se completa', async () => {
+    const s = await aceptada();
+    await ejecutar(`UPDATE solicitudes SET estado = 'flagueada' WHERE id = $1`, [s.id]);
+    await confirmar(ana, s.id, { ejecutar });
+    expect((await confirmar(beto, s.id, { ejecutar })).estado).toBe('completada');
+  });
+
+  it('confirmar dos veces -> 409', async () => {
+    const s = await aceptada();
+    await confirmar(ana, s.id, { ejecutar });
+    const error = await errorDe(() => confirmar(ana, s.id, { ejecutar }));
+    expect(error).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+    expect(error.message).toMatch(/Ya confirmaste/);
+  });
+
+  it('una pendiente o completada -> 409; un tercero -> 404', async () => {
+    const s = await pedir();
+    expect(await errorDe(() => confirmar(ana, s.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+    const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
+    expect(await errorDe(() => confirmar(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
+  });
+
+  it('un libro con mas ejemplares sigue en el catalogo con los que quedan', async () => {
+    await ejecutar(`UPDATE libros SET cantidad_total = 3 WHERE titulo = 'Rayuela'`);
+    const s = await aceptada();
+    await confirmar(ana, s.id, { ejecutar });
+    await confirmar(beto, s.id, { ejecutar });
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 2, cantidad_reservada: 0 });
   });
 });

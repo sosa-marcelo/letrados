@@ -16,6 +16,7 @@ import {
   marcarAceptada,
   cerrarSolicitud,
   cerrarPendientesDePublicacion,
+  marcarConfirmacion,
 } from '../data/solicitudes.js';
 
 /**
@@ -358,6 +359,47 @@ export async function cancelarBloqueada(fila, usuarioId, tx) {
   }
 
   await cerrarSolicitud(fila.id, 'cancelada', { canceladaPor: usuarioId }, tx);
+}
+
+/**
+ * Confirma que el intercambio se concreto (RF-21, CU-24). Cada parte confirma
+ * una vez, en `aceptada` o `flagueada` (el flagueo avisa, no congela). Con las
+ * dos confirmaciones, en la misma transaccion: `completada`, descuenta un
+ * ejemplar de cada libro (total y reservada) y cierra la publicacion.
+ *
+ * - No aceptada ni flagueada -> 409. Confirmar dos veces -> 409.
+ *
+ * @param {string} usuarioId
+ * @param {string} solicitudId
+ * @param {{ ejecutar?: import('../data/solicitudes.js').Ejecutor }} [opciones]
+ * @returns {Promise<Solicitud>}
+ */
+export async function confirmar(usuarioId, solicitudId, { ejecutar } = {}) {
+  return enTransaccion(
+    async (tx) => {
+      const fila = await bloquearComoParte(usuarioId, solicitudId, tx);
+      if (!CONFIRMABLES.includes(fila.estado)) {
+        throw estadoInvalido('Solo se confirma un intercambio aceptado');
+      }
+      const parte = parteDe(fila, usuarioId);
+      const yaConfirmo =
+        parte === 'propietario' ? fila.confirmada_propietario_en : fila.confirmada_solicitante_en;
+      if (yaConfirmo) throw estadoInvalido('Ya confirmaste este intercambio');
+
+      const confirmada = await marcarConfirmacion(solicitudId, parte, tx);
+      if (confirmada.confirmada_propietario_en && confirmada.confirmada_solicitante_en) {
+        const publicacion = await bloquearPublicacion(fila.publicacion_id, tx);
+        const { solicitado, ofrecido } = await bloquearLibrosDe(fila, tx);
+        await moverEjemplar(solicitado.id, 'descontar', tx);
+        await moverEjemplar(ofrecido.id, 'descontar', tx);
+        await cambiarEstadoPublicacion(publicacion.id, 'cerrada', tx);
+        await cerrarSolicitud(solicitudId, 'completada', {}, tx);
+      }
+
+      return vistaSolicitud(await buscarSolicitud(solicitudId, tx), usuarioId);
+    },
+    { ejecutar },
+  );
 }
 
 /**
