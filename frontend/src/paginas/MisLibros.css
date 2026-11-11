@@ -1,5 +1,13 @@
 /* /mis-libros. Valores de 03-catalogo. */
 
+/* LET-123: «Editorial · Año · Estado», pegada al encabezado de la ficha. */
+.libro__datos {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--gris);
+  overflow-wrap: anywhere;
+}
+
 .libro__numeros {
   display: flex;
   align-items: baseline;
