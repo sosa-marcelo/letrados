@@ -1,8 +1,9 @@
 import { Router } from 'express';
 
 import * as solicitudes from '../../domain/solicitudes.js';
+import { reportar } from '../../domain/reportes.js';
 import { autenticar } from '../middlewares/autenticar.js';
-import { esIdValido, validarSolicitud } from '../validacion.js';
+import { esIdValido, validarSolicitud, validarReporte } from '../validacion.js';
 
 /**
  * Rutas de las solicitudes e intercambios (modulo 4, epica LET-114, RF-17 a
@@ -46,6 +47,12 @@ for (const [accion, hacer] of Object.entries(ACCIONES)) {
     res.json({ solicitud: await hacer(req.usuario.id, idSolicitud(req.params.id)) });
   });
 }
+
+// POST /api/solicitudes/:id/reportes { descripcion } -> 201 { reporte } | 400 | 404 | 409   (RF-24)
+rutasSolicitudes.post('/solicitudes/:id/reportes', async (req, res) => {
+  const reporte = await reportar(req.usuario.id, idSolicitud(req.params.id), validarReporte(req.body));
+  res.status(201).json({ reporte });
+});
 
 /**
  * Un id que no es un entero positivo no puede ser una solicitud: 404 directo.
