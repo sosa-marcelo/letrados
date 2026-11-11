@@ -24,6 +24,8 @@ import { consultar } from '../infra/bd.js';
  * @property {string | null} cancelada_por
  * @property {Date | null} cerrada_en
  * @property {Date} creada_en
+ * @property {Date | null} flagueada_en - cuando vencio el plazo sin las dos confirmaciones (RF-23).
+ * @property {string | null} motivo_flagueo
  */
 
 /**
@@ -40,12 +42,13 @@ import { consultar } from '../infra/bd.js';
 
 const COLUMNAS =
   'id, publicacion_id, solicitante_id, libro_ofrecido_id, estado, aceptada_en, vence_en, ' +
-  'confirmada_propietario_en, confirmada_solicitante_en, cancelada_por, cerrada_en, creada_en';
+  'confirmada_propietario_en, confirmada_solicitante_en, cancelada_por, cerrada_en, creada_en, ' +
+  'flagueada_en, motivo_flagueo';
 
 const SELECT_COMPLETA = `
   SELECT s.id, s.publicacion_id, s.solicitante_id, s.libro_ofrecido_id, s.estado,
          s.aceptada_en, s.vence_en, s.confirmada_propietario_en, s.confirmada_solicitante_en,
-         s.cancelada_por, s.cerrada_en, s.creada_en,
+         s.cancelada_por, s.cerrada_en, s.creada_en, s.flagueada_en, s.motivo_flagueo,
          p.usuario_id AS propietario_id, p.libro_id AS libro_solicitado_id,
          p.estado AS publicacion_estado,
          ls.titulo AS solicitado_titulo, ls.autor AS solicitado_autor,
@@ -274,4 +277,47 @@ export async function marcarConfirmacion(id, parte, ejecutar = consultar) {
     [id],
   );
   return rows[0];
+}
+
+/**
+ * Flaguea las aceptadas cuyo plazo vencio (RF-23, LET-155): `flagueada`, con
+ * fecha y motivo. Es idempotente: una flagueada ya no es aceptada.
+ *
+ * @param {string} motivo
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<number>} cuantas flagueo.
+ */
+export async function flaguearVencidas(motivo, ejecutar = consultar) {
+  const { rowCount } = await ejecutar(
+    `UPDATE solicitudes
+        SET estado = 'flagueada', flagueada_en = now(), motivo_flagueo = $1
+      WHERE estado = 'aceptada' AND vence_en < now()`,
+    [motivo],
+  );
+  return rowCount ?? 0;
+}
+
+/**
+ * Los intercambios que alguna vez se flaguearon (RF-23, LET-157), del mas
+ * reciente al mas viejo, con su estado actual. `soloFlagueadas` deja los que
+ * siguen flagueados (el filtro por defecto del panel).
+ *
+ * @param {{ soloFlagueadas: boolean, limite: number, desplazamiento: number }} opciones
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<{ filas: FilaSolicitudCompleta[], total: number }>}
+ */
+export async function listarFlagueadas({ soloFlagueadas, limite, desplazamiento }, ejecutar = consultar) {
+  const filtro = soloFlagueadas
+    ? "s.flagueada_en IS NOT NULL AND s.estado = 'flagueada'"
+    : 's.flagueada_en IS NOT NULL';
+  const { rows: conteo } = await ejecutar(
+    `SELECT count(*)::int AS total FROM solicitudes s WHERE ${filtro}`,
+  );
+  const { rows } = await ejecutar(
+    `${SELECT_COMPLETA}
+      WHERE ${filtro}
+      ORDER BY s.flagueada_en DESC, s.id DESC
+      LIMIT ${Number(limite)} OFFSET ${Number(desplazamiento)}`,
+  );
+  return { filas: rows, total: conteo[0].total };
 }

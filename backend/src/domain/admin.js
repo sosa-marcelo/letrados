@@ -6,6 +6,10 @@ import {
   actualizarEstadoCuenta,
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
+import { listarFlagueadas } from '../data/solicitudes.js';
+import { reportesDeSolicitudes } from '../data/reportes.js';
+import { flaguearVencidas } from './solicitudes.js';
+import { vistaReporte } from './reportes.js';
 
 /**
  * Administracion de cuentas (modulo 2, RF-07). Todas las funciones asumen que
@@ -148,4 +152,54 @@ function recortar(valor, min, max, defecto) {
   const n = Number.parseInt(valor, 10);
   if (!Number.isFinite(n)) return defecto;
   return Math.min(Math.max(n, min), max);
+}
+
+/**
+ * Intercambios flagueados para el panel de administracion (RF-23, RF-24,
+ * CU-27, LET-157): los que alguna vez vencieron sin las dos confirmaciones,
+ * con las dos partes, los dos libros, el estado actual y sus reportes. Por
+ * defecto solo los que siguen flagueados; `estado: 'todos'` trae tambien los
+ * que despues se completaron o cancelaron. El administrador solo consulta.
+ *
+ * Barre los vencidos antes de listar: lo que vencio recien ya aparece.
+ *
+ * @param {{ estado?: string, pagina?: number | string, porPagina?: number | string }} filtro
+ * @param {{ ejecutar?: Function }} [opciones]
+ * @returns {Promise<{ datos: object[], paginacion: { pagina: number, porPagina: number, total: number } }>}
+ */
+export async function listarFlagueados({ estado, pagina, porPagina } = {}, { ejecutar } = {}) {
+  await flaguearVencidas({ ejecutar });
+  const pag = recortar(pagina, 1, Number.MAX_SAFE_INTEGER, 1);
+  const tam = recortar(porPagina, 1, POR_PAGINA_MAX, POR_PAGINA_DEFECTO);
+
+  const { filas, total } = await listarFlagueadas(
+    { soloFlagueadas: estado !== 'todos', limite: tam, desplazamiento: (pag - 1) * tam },
+    ejecutar,
+  );
+  const reportes = await reportesDeSolicitudes(
+    filas.map((f) => f.id),
+    ejecutar,
+  );
+  const reportesDe = new Map();
+  for (const r of reportes) {
+    const clave = String(r.solicitud_id);
+    reportesDe.set(clave, [...(reportesDe.get(clave) ?? []), vistaReporte(r)]);
+  }
+
+  const fecha = (valor) => (valor ? new Date(valor).toISOString() : null);
+  return {
+    datos: filas.map((f) => ({
+      id: String(f.id),
+      estado: f.estado,
+      flagueadaEn: fecha(f.flagueada_en),
+      motivo: f.motivo_flagueo,
+      venceEn: fecha(f.vence_en),
+      propietario: { id: String(f.propietario_id), nombre: f.propietario_nombre },
+      solicitante: { id: String(f.solicitante_id), nombre: f.solicitante_nombre },
+      libroSolicitado: { titulo: f.solicitado_titulo, autor: f.solicitado_autor },
+      libroOfrecido: { titulo: f.ofrecido_titulo, autor: f.ofrecido_autor },
+      reportes: reportesDe.get(String(f.id)) ?? [],
+    })),
+    paginacion: { pagina: pag, porPagina: tam, total },
+  };
 }

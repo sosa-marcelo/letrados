@@ -11,6 +11,8 @@ import {
   confirmar,
   listar,
   ver,
+  flaguearVencidas,
+  MOTIVO_FLAGUEO,
 } from '../../src/domain/solicitudes.js';
 import { publicar, retirar, listarActivas } from '../../src/domain/publicaciones.js';
 import { darDeBaja } from '../../src/domain/perfil.js';
@@ -464,5 +466,56 @@ describe('circuitos completos y bordes (LET-148)', () => {
     await aceptar(ana, aAna.id, { ejecutar });
     const error = await errorDe(() => aceptar(carla, aCarla.id, { ejecutar }));
     expect(error.message).toMatch(/«Ficciones» ya no tiene ejemplares/);
+  });
+});
+
+describe('aceptar usa el plazo configurado (LET-154)', () => {
+  it('con el parametro en 10, vence 10 segundos despues de aceptar', async () => {
+    await ejecutar(`UPDATE parametros SET valor = '10' WHERE clave = 'plazo_confirmacion_segundos'`);
+    const s = await pedir();
+    const ahora = new Date('2026-11-12T10:00:00Z');
+    expect((await aceptar(ana, s.id, { ejecutar, ahora })).venceEn).toBe('2026-11-12T10:00:10.000Z');
+  });
+});
+
+describe('barrido de vencidas: flagueo sin confirmacion (LET-155, RF-23)', () => {
+  /** Acepta y deja el plazo vencido, sin esperar. */
+  async function aceptadaVencida() {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    await ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [s.id]);
+    return s;
+  }
+
+  it('al listar, una aceptada vencida aparece flagueada con fecha y motivo', async () => {
+    const s = await aceptadaVencida();
+    const [vista] = (await listar(ana, {}, { ejecutar })).datos;
+    expect(vista).toMatchObject({ id: s.id, estado: 'flagueada', motivoFlagueo: MOTIVO_FLAGUEO });
+    expect(vista.flagueadaEn).not.toBeNull();
+  });
+
+  it('ver tambien barre; una aceptada en plazo no se toca', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    expect((await ver(beto, s.id, { ejecutar })).estado).toBe('aceptada');
+    await ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [s.id]);
+    expect((await ver(beto, s.id, { ejecutar })).estado).toBe('flagueada');
+  });
+
+  it('es idempotente: barrer dos veces flaguea una sola vez', async () => {
+    await aceptadaVencida();
+    expect(await flaguearVencidas({ ejecutar })).toBe(1);
+    expect(await flaguearVencidas({ ejecutar })).toBe(0);
+  });
+
+  it('confirmarla despues del vencimiento todavia la completa', async () => {
+    const s = await aceptadaVencida();
+    expect((await confirmar(ana, s.id, { ejecutar })).estado).toBe('flagueada');
+    expect((await confirmar(beto, s.id, { ejecutar })).estado).toBe('completada');
+  });
+
+  it('las pendientes vencidas no se flaguean: solo las aceptadas tienen plazo', async () => {
+    await pedir();
+    expect(await flaguearVencidas({ ejecutar })).toBe(0);
   });
 });

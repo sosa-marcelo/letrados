@@ -106,6 +106,30 @@ UPDATE usuarios SET rol = 'administrador' WHERE lower(email) = lower('correo@eje
 El cambio vale al instante, sin volver a iniciar sesión: el rol se lee de la
 base en cada petición, no del token.
 
+## Bajar el plazo de confirmación para la demo
+
+Un intercambio aceptado tiene 24 horas para que las dos partes confirmen la
+entrega (RF-22); si vence, se flaguea (RF-23). El plazo vive en la base, en la
+tabla `parametros`, así que se cambia sin desplegar ni reiniciar. Para la
+demostración se baja a 10 segundos:
+
+```sql
+UPDATE parametros SET valor = '10', actualizado_en = now()
+ WHERE clave = 'plazo_confirmacion_segundos';
+```
+
+Y se vuelve a las 24 horas al terminar:
+
+```sql
+UPDATE parametros SET valor = '86400', actualizado_en = now()
+ WHERE clave = 'plazo_confirmacion_segundos';
+```
+
+El plazo nuevo vale para lo que se acepte desde ese momento: un intercambio ya
+aceptado conserva su fecha límite. No hace falta esperar a ningún proceso: la
+API flaguea los vencidos cada vez que alguien lista, ve o actúa sobre una
+solicitud, y cuando el administrador abre `/admin/flagueados`.
+
 ## Sobre el archivo `.env`
 
 `dev`, `start` y `migrar` leen el `.env` de la raíz si existe. Las variables que

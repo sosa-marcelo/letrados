@@ -145,3 +145,37 @@ describe('integracion con publicaciones y catalogo (LET-148)', () => {
     expect((await beto.yo.get('/api/libros')).body.datos[0]).toMatchObject({ reservada: 0, disponible: 1 });
   });
 });
+
+describe('POST /api/solicitudes/:id/reportes (LET-156, RF-24)', () => {
+  it('-> 201 sobre una flagueada; 409 sobre una aceptada en plazo; 400 sin descripcion', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    expect((await beto.yo.post(`/api/solicitudes/${id}/reportes`, { descripcion: 'x' })).status).toBe(409);
+
+    await estado.ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [id]);
+    const vacio = await beto.yo.post(`/api/solicitudes/${id}/reportes`, { descripcion: '   ' });
+    expect(vacio.status).toBe(400);
+    expect(vacio.body.error.detalles.map((d) => d.campo)).toEqual(['descripcion']);
+
+    const r = await beto.yo.post(`/api/solicitudes/${id}/reportes`, { descripcion: ' No vino ' });
+    expect(r.status).toBe(201);
+    expect(r.body.reporte).toMatchObject({ descripcion: 'No vino', autor: { id: beto.id } });
+  });
+});
+
+describe('GET /api/admin/flagueados (LET-157)', () => {
+  it('un usuario comun -> 403; el administrador ve el flagueado con sus reportes', async () => {
+    const id = (await beto.yo.post('/api/solicitudes', pedido())).body.solicitud.id;
+    await ana.yo.post(`/api/solicitudes/${id}/aceptar`);
+    await estado.ejecutar(`UPDATE solicitudes SET vence_en = now() - interval '1 second' WHERE id = $1`, [id]);
+    await beto.yo.post(`/api/solicitudes/${id}/reportes`, { descripcion: 'No vino' });
+
+    expect((await beto.yo.get('/api/admin/flagueados')).status).toBe(403);
+
+    const admin = await cuenta('admin@ejemplo.com');
+    await estado.ejecutar(`UPDATE usuarios SET rol = 'administrador' WHERE id = $1`, [admin.id]);
+    const r = await conToken(admin.token).get('/api/admin/flagueados');
+    expect(r.status).toBe(200);
+    expect(r.body.datos[0]).toMatchObject({ id, estado: 'flagueada', reportes: [{ descripcion: 'No vino' }] });
+  });
+});
