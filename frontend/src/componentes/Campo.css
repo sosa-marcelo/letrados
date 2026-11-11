@@ -52,6 +52,17 @@
   color: var(--gris);
 }
 
+/* LET-122: texto largo. Crece hacia abajo; el ancho lo pone el diálogo. */
+.campo__input--textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.campo__input--select {
+  cursor: pointer;
+}
+
 /* Foco de teclado: contorno de 3 px separado 2 px, en el complementario del paso. */
 .campo__input:focus-visible {
   outline: 3px solid var(--complementario, var(--naranja));

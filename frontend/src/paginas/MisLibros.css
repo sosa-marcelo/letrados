@@ -76,3 +76,40 @@
 .libro__campo-cantidad .campo__input {
   max-width: 140px;
 }
+
+/* LET-122: «Más datos (opcional)», plegado debajo de los obligatorios. */
+.libro__mas {
+  border-top: 1px solid rgba(20, 20, 20, 0.1);
+  padding-top: 14px;
+}
+
+.libro__mas-titulo {
+  cursor: pointer;
+  font-size: var(--texto-etiqueta);
+  font-weight: 600;
+  color: var(--tinta);
+  margin-bottom: 14px;
+  list-style-position: inside;
+}
+
+.libro__mas:not([open]) .libro__mas-titulo {
+  margin-bottom: 0;
+}
+
+.libro__mas-titulo:focus-visible {
+  outline: 2px solid var(--naranja);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.libro__mas-grilla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+}
+
+@media (max-width: 480px) {
+  .libro__mas-grilla {
+    grid-template-columns: 1fr;
+  }
+}
