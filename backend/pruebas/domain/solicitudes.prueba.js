@@ -7,6 +7,7 @@ import {
   parteDe,
   aceptar,
   rechazar,
+  cancelar,
 } from '../../src/domain/solicitudes.js';
 import { publicar } from '../../src/domain/publicaciones.js';
 import { agregarLibro } from '../../src/domain/libros.js';
@@ -225,5 +226,46 @@ describe('aceptar y rechazar (RF-19, RF-22)', () => {
     expect(Object.values(rechazada.puedo).some(Boolean)).toBe(false);
     expect(await estadoPublicacion(publicacion.id)).toBe('activa');
     expect(await libro('Ficciones')).toMatchObject({ cantidad_reservada: 0 });
+  });
+});
+
+describe('cancelar (RF-20)', () => {
+  it('una pendiente: la cancela cualquiera de las partes, sin tocar libros', async () => {
+    const s = await pedir();
+    const cancelada = await cancelar(beto, s.id, { ejecutar });
+    expect(cancelada).toMatchObject({ estado: 'cancelada' });
+    const { rows } = await ejecutar('SELECT cancelada_por FROM solicitudes WHERE id = $1', [s.id]);
+    expect(String(rows[0].cancelada_por)).toBe(beto);
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_reservada: 0 });
+  });
+
+  it('una aceptada: libera 1 + 1 y la publicacion vuelve a Explorar', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    await cancelar(ana, s.id, { ejecutar });
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 0 });
+    expect(await libro('Ficciones')).toMatchObject({ cantidad_total: 1, cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('activa');
+  });
+
+  it('una flagueada tambien se cancela y libera', async () => {
+    const s = await pedir();
+    await aceptar(ana, s.id, { ejecutar });
+    await ejecutar(`UPDATE solicitudes SET estado = 'flagueada' WHERE id = $1`, [s.id]);
+    await cancelar(beto, s.id, { ejecutar });
+    expect(await libro('Rayuela')).toMatchObject({ cantidad_reservada: 0 });
+    expect(await estadoPublicacion(publicacion.id)).toBe('activa');
+  });
+
+  it.each(['rechazada', 'cancelada', 'completada'])('una %s -> 409', async (estado) => {
+    const s = await pedir();
+    await ejecutar('UPDATE solicitudes SET estado = $2 WHERE id = $1', [s.id, estado]);
+    expect(await errorDe(() => cancelar(ana, s.id, { ejecutar }))).toMatchObject({ codigo: 'ESTADO_INVALIDO' });
+  });
+
+  it('un tercero -> 404', async () => {
+    const s = await pedir();
+    const carla = String((await sembrarUsuario(ejecutar, { email: 'carla@ejemplo.com' })).id);
+    expect(await errorDe(() => cancelar(carla, s.id, { ejecutar }))).toMatchObject({ codigo: 'NO_ENCONTRADO' });
   });
 });
