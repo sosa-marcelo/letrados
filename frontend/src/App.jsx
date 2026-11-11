@@ -14,6 +14,7 @@ import Muestra from './paginas/Muestra.jsx'
 import NoEncontrada from './paginas/NoEncontrada.jsx'
 import Perfil from './paginas/Perfil.jsx'
 import PerfilPublico from './paginas/PerfilPublico.jsx'
+import Publicacion from './paginas/Publicacion.jsx'
 import Recuperar from './paginas/Recuperar.jsx'
 import Registro from './paginas/Registro.jsx'
 
@@ -22,6 +23,7 @@ import Registro from './paginas/Registro.jsx'
  *
  *   públicas
  *     /                    Explorar publicaciones (LET-132)  naranja
+ *     /publicaciones/:id   Detalle de una publicación (LET-133)  naranja
  *     /usuarios/:id        Perfil público                 naranja
  *     /login /registro /recuperar /recuperar/:token       (módulo 1)
  *
@@ -73,6 +75,7 @@ const rutas = [
       </RutaProtegida>
     ),
   },
+  { path: '/publicaciones/:id', element: <Publicacion /> },
   { path: '/usuarios/:id', element: <PerfilPublico /> },
   {
     path: '/admin/cuentas',
