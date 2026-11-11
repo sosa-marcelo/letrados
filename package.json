@@ -20,6 +20,7 @@
     "servir": "npm run start --workspace backend",
     "test": "npm run test --workspaces --if-present",
     "migrar": "npm run migrar --workspace backend",
+    "sembrar:demo": "npm run sembrar:demo --workspace backend",
     "docs": "npm run docs --workspace backend"
   },
   "devDependencies": {

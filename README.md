@@ -66,6 +66,7 @@ Vite redirige `/api` al backend, así que en desarrollo no hace falta CORS.
 | `npm run servir` | Sirve sin compilar. Solo si ya compilaste antes. |
 | `npm test` | Pruebas de los dos workspaces, con cobertura. |
 | `npm run migrar` | Aplica las migraciones pendientes. Antes de tocar nada avisa a qué base va a aplicar. |
+| `npm run sembrar:demo` | Carga los datos de demostración de la entrega final. Ver «Datos de demostración». |
 | `npm run docs` | Genera la documentación del código (JSDoc) y de la API (OpenAPI) en `frontend/public/documentacion/`. |
 
 **`npm run dev` y `npm start` no son lo mismo.** En `dev` el frontend lo sirve
@@ -105,6 +106,26 @@ UPDATE usuarios SET rol = 'administrador' WHERE lower(email) = lower('correo@eje
 
 El cambio vale al instante, sin volver a iniciar sesión: el rol se lee de la
 base en cada petición, no del token.
+
+## Datos de demostración
+
+`npm run sembrar:demo` carga en la base de `DATABASE_URL` lo que muestra la
+presentación de la entrega final:
+
+- **Cuentas:** dos comunes (`mariana@ejemplo.com` y `diego@ejemplo.com`) y una administradora (`admin@ejemplo.com`).
+- **Libros y publicaciones:** seis libros con los datos nuevos y cinco publicaciones con foto.
+- **Intercambios:** uno completado y valorado, uno flagueado con un reporte y uno pendiente.
+
+La contraseña de las tres cuentas no vive en el repositorio: se pasa al correrlo.
+
+```bash
+DEMO_CONTRASENA='…' npm run sembrar:demo
+```
+
+Pasa por las mismas reglas que la API, porque usa las funciones del dominio. No
+cambia el plazo de confirmación: el flagueado se acepta con una fecha corrida
+hacia atrás. Si alguna de las tres cuentas ya existe, se detiene sin escribir
+nada. Las tapas son imágenes generadas, en `backend/scripts/demo/`.
 
 ## Bajar el plazo de confirmación para la demo
 
