@@ -85,3 +85,9 @@
 .grilla-publicaciones {
   align-items: start;
 }
+
+@media (max-width: 480px) {
+  .tarjeta-pub__inicial {
+    font-size: 52px;
+  }
+}

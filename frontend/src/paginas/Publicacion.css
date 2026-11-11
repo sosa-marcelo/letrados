@@ -179,3 +179,28 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* LET-136: a 480 px, la sombra corta del resto de la app y menos relleno. */
+@media (max-width: 480px) {
+  .publicacion {
+    gap: 20px;
+  }
+
+  .publicacion__foto,
+  .publicacion__papel {
+    box-shadow: var(--sombra-dura-movil);
+  }
+
+  .publicacion__papel {
+    padding: 18px 16px;
+    gap: 14px;
+  }
+
+  .publicacion__inicial {
+    font-size: 84px;
+  }
+
+  .publicacion__acciones > * {
+    flex: 1 1 100%;
+  }
+}
