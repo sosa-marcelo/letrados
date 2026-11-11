@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
+import { insertarLibro, actualizarLibro } from '../../src/data/libros.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
 let ejecutar;
@@ -68,5 +69,53 @@ describe('migracion 005: datos opcionales del libro', () => {
     await expect(
       ejecutar(`UPDATE libros SET anio_publicacion = 2101 WHERE id = $1`, [libro.id]),
     ).rejects.toThrow();
+  });
+});
+
+describe('insertarLibro y actualizarLibro con los datos opcionales (LET-120)', () => {
+  const OPCIONALES = {
+    editorial: 'Sudamericana',
+    anio_publicacion: 1963,
+    edicion: '1.a edicion',
+    isbn: '9789500703134',
+    estado_conservacion: 'bueno',
+    descripcion: 'Tapa dura',
+  };
+
+  it('insertarLibro sin opcionales los deja en null', async () => {
+    const fila = await insertarLibro(
+      { usuario_id: duenio, titulo: 'Rayuela', autor: 'Cortázar', cantidad_total: 1 },
+      ejecutar,
+    );
+    expect(fila).toMatchObject({ editorial: null, anio_publicacion: null, descripcion: null });
+  });
+
+  it('insertarLibro guarda los seis opcionales y los devuelve', async () => {
+    const fila = await insertarLibro(
+      { usuario_id: duenio, titulo: 'Rayuela', autor: 'Cortázar', cantidad_total: 1, ...OPCIONALES },
+      ejecutar,
+    );
+    expect(fila).toMatchObject(OPCIONALES);
+  });
+
+  it('actualizarLibro reemplaza todo: lo que no viene queda en null', async () => {
+    const { id } = await insertarLibro(
+      { usuario_id: duenio, titulo: 'Rayuela', autor: 'Cortázar', cantidad_total: 1, ...OPCIONALES },
+      ejecutar,
+    );
+    const fila = await actualizarLibro(
+      id,
+      { titulo: 'Rayuela', autor: 'Cortázar', cantidad_total: 2, isbn: '0306406152' },
+      ejecutar,
+    );
+    expect(fila).toMatchObject({
+      cantidad_total: 2,
+      editorial: null,
+      anio_publicacion: null,
+      edicion: null,
+      isbn: '0306406152',
+      estado_conservacion: null,
+      descripcion: null,
+    });
   });
 });
