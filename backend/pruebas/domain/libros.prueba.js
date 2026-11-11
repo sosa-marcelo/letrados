@@ -58,13 +58,16 @@ describe('disponiblesDe y vistaLibro', () => {
       'estadoConservacion',
       'id',
       'isbn',
+      'publicacionId',
       'publicado',
       'reservada',
       'tieneHistorial',
       'titulo',
       'total',
     ]);
-    expect(vistaLibro({ id: 1, titulo: 't', autor: 'a', cantidad_total: 1, cantidad_reservada: 0, creado_en: new Date() }, { publicado: true }).publicado).toBe(true);
+    const fila = { id: 1, titulo: 't', autor: 'a', cantidad_total: 1, cantidad_reservada: 0, creado_en: new Date() };
+    expect(vistaLibro(fila, { publicacionId: 5 })).toMatchObject({ publicado: true, publicacionId: '5' });
+    expect(vistaLibro(fila)).toMatchObject({ publicado: false, publicacionId: null });
   });
 });
 

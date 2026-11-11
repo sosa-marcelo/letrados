@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { createBrowserRouter, Navigate, Outlet, useNavigate } from 'react-router-dom'
+import { createBrowserRouter, Outlet, useNavigate } from 'react-router-dom'
 
 import RutaAdmin from './componentes/RutaAdmin.jsx'
 import RutaProtegida from './componentes/RutaProtegida.jsx'
@@ -7,20 +7,23 @@ import RutaSinSesion from './componentes/RutaSinSesion.jsx'
 import { useSesion } from './contexto/Sesion.jsx'
 import AdminCuentas from './paginas/AdminCuentas.jsx'
 import ContrasenaNueva from './paginas/ContrasenaNueva.jsx'
+import Explorar from './paginas/Explorar.jsx'
 import Login from './paginas/Login.jsx'
 import MisLibros from './paginas/MisLibros.jsx'
 import Muestra from './paginas/Muestra.jsx'
 import NoEncontrada from './paginas/NoEncontrada.jsx'
 import Perfil from './paginas/Perfil.jsx'
 import PerfilPublico from './paginas/PerfilPublico.jsx'
+import Publicacion from './paginas/Publicacion.jsx'
 import Recuperar from './paginas/Recuperar.jsx'
 import Registro from './paginas/Registro.jsx'
 
 /*
- * Mapa de navegación (DISENIO-GENERAL §9), lo que existe en el ciclo 2:
+ * Mapa de navegación (DISENIO-GENERAL §9), con el módulo 4 (ciclo 3):
  *
  *   públicas
- *     /                    raíz: con sesión -> /mis-libros, sin sesión -> /login
+ *     /                    Explorar publicaciones (LET-132)  naranja
+ *     /publicaciones/:id   Detalle de una publicación (LET-133)  naranja
  *     /usuarios/:id        Perfil público                 naranja
  *     /login /registro /recuperar /recuperar/:token       (módulo 1)
  *
@@ -31,8 +34,8 @@ import Registro from './paginas/Registro.jsx'
  *   administrador
  *     /admin/cuentas       Listar, buscar, bloquear       tinta
  *
- * `/` va a ser Explorar publicaciones (pública, naranja) cuando llegue el
- * módulo 4; hasta entonces sólo reparte. La Home del ciclo 1 se retiró.
+ * `/` es Explorar desde LET-132: pública, con o sin sesión. Hasta el ciclo 2
+ * solo repartía entre /mis-libros y /login.
  *
  * /muestra y * no son pantallas del producto: /muestra es la vitrina
  * desechable de LET-20 y * evita la pantalla en blanco.
@@ -42,13 +45,6 @@ import Registro from './paginas/Registro.jsx'
  * porque su token de un solo uso tiene que servir aunque haya sesión en el
  * dispositivo donde se abre el enlace.
  */
-
-/** `/`: reparte según haya sesión. Mientras se resuelve, no decide nada. */
-function Raiz() {
-  const { usuario, cargando } = useSesion()
-  if (cargando) return <div aria-hidden="true" />
-  return <Navigate to={usuario ? '/mis-libros' : '/login'} replace />
-}
 
 /* También cubre las páginas públicas: una sesión revocada debe llevar a
  * /login aunque la llamada autenticada se haya hecho desde /usuarios/:id. */
@@ -62,7 +58,7 @@ function VigilarSesion() {
 }
 
 const rutas = [
-  { path: '/', element: <Raiz /> },
+  { path: '/', element: <Explorar /> },
   {
     path: '/mis-libros',
     element: (
@@ -79,6 +75,7 @@ const rutas = [
       </RutaProtegida>
     ),
   },
+  { path: '/publicaciones/:id', element: <Publicacion /> },
   { path: '/usuarios/:id', element: <PerfilPublico /> },
   {
     path: '/admin/cuentas',

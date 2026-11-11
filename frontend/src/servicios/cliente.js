@@ -97,14 +97,17 @@ function sinCuerpo(respuesta) {
 
 /**
  * @param {string} ruta  Ruta relativa; se le antepone /api si hace falta.
- * @param {{ metodo?: string, cuerpo?: unknown, cabeceras?: Record<string,string>, senal?: AbortSignal }} [opciones]
+ * `archivo` (un File o Blob) viaja tal cual, con su propio Content-Type: así
+ * se sube la foto de una publicación (LET-133). Si viene, `cuerpo` se ignora.
+ *
+ * @param {{ metodo?: string, cuerpo?: unknown, archivo?: Blob, cabeceras?: Record<string,string>, senal?: AbortSignal }} [opciones]
  * @returns {Promise<any>} El cuerpo JSON de la respuesta (o null si fue un
  *   éxito sin cuerpo: 204/205 o Content-Length 0).
  * @throws {ErrorApi} Ante error de red, respuesta no OK, o respuesta OK cuyo
  *   cuerpo no es JSON (codigo 'RESPUESTA_NO_JSON').
  */
 export async function solicitar(ruta, opciones = {}) {
-  const { metodo = 'GET', cuerpo, cabeceras, senal } = opciones
+  const { metodo = 'GET', cuerpo, archivo, cabeceras, senal } = opciones
 
   const init = {
     method: metodo,
@@ -115,7 +118,10 @@ export async function solicitar(ruta, opciones = {}) {
   const token = leerToken()
   if (token) init.headers.Authorization = `Bearer ${token}`
 
-  if (cuerpo !== undefined) {
+  if (archivo !== undefined) {
+    init.headers['Content-Type'] = archivo.type || 'application/octet-stream'
+    init.body = archivo
+  } else if (cuerpo !== undefined) {
     init.headers['Content-Type'] = 'application/json'
     init.body = JSON.stringify(cuerpo)
   }
@@ -185,6 +191,11 @@ export function actualizar(ruta, cuerpo, opciones) {
  */
 export function eliminar(ruta, opciones = {}) {
   return solicitar(ruta, { ...opciones, metodo: 'DELETE' })
+}
+
+/** PUT /api/<ruta> con un archivo como cuerpo binario (la foto, LET-133). */
+export function subirArchivo(ruta, archivo, opciones) {
+  return solicitar(ruta, { ...opciones, metodo: 'PUT', archivo })
 }
 
 /** Arma el query string de un listado, sin los parámetros vacíos. */

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, beforeEach, test } from 'node:test'
 
-import { conConsulta, eliminar, escucharSesionInvalida, obtener, ErrorApi } from '../src/servicios/cliente.js'
+import { conConsulta, eliminar, escucharSesionInvalida, obtener, subirArchivo, ErrorApi } from '../src/servicios/cliente.js'
 import { esSinRed, mapearDetalles } from '../src/servicios/errores.js'
 
 // Pruebas sin servidor ni dependencias: fetch y localStorage se reemplazan
@@ -84,4 +84,23 @@ test('un fallo de fetch se traduce a SIN_RED', async () => {
 test('las consultas codifican la búsqueda y omiten filtros vacíos', () => {
   assert.equal(conConsulta('/libros', { q: 'García & Borges', pagina: 2, estado: '' }), '/libros?q=Garc%C3%ADa+%26+Borges&pagina=2')
   assert.deepEqual(mapearDetalles([{ campo: 'nombre', mensaje: 'Obligatorio' }]), { nombre: 'Obligatorio' })
+})
+
+test('subirArchivo manda el archivo tal cual, con su Content-Type y el token (LET-133)', async () => {
+  let pedido
+  globalThis.fetch = async (url, init) => {
+    pedido = { url, init }
+    return new Response(JSON.stringify({ publicacion: { id: '7', tieneFoto: true } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  const foto = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' })
+  const respuesta = await subirArchivo('/publicaciones/7/foto', foto)
+  assert.equal(pedido.url, '/api/publicaciones/7/foto')
+  assert.equal(pedido.init.method, 'PUT')
+  assert.equal(pedido.init.headers['Content-Type'], 'image/jpeg')
+  assert.equal(pedido.init.headers.Authorization, 'Bearer sesion-de-prueba')
+  assert.equal(pedido.init.body, foto)
+  assert.equal(respuesta.publicacion.tieneFoto, true)
 })
