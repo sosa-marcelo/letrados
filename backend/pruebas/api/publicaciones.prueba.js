@@ -253,3 +253,51 @@ describe('endpoints de /api/publicaciones (LET-129)', () => {
     });
   });
 });
+
+describe('publicaciones en el resto de la API (LET-131)', () => {
+  it('GET /api/usuarios/:id trae las publicaciones activas en el perfil publico (RF-08)', async () => {
+    const { id, publicacion } = await conPublicacion();
+    const r = await request(app).get(`/api/usuarios/${id}`);
+    expect(r.status).toBe(200);
+    const perfil = r.body.usuario ?? r.body;
+    expect(perfil.publicaciones.map((p) => p.id)).toEqual([publicacion.id]);
+    expect(JSON.stringify(perfil)).not.toMatch(/@ejemplo\.com/);
+  });
+
+  it('GET /api/libros marca publicado y publicacionId; al retirar se apaga', async () => {
+    const { token, publicacion } = await conPublicacion();
+    const [libro] = (await conToken(token).get('/api/libros')).body.datos;
+    expect(libro).toMatchObject({ publicado: true, publicacionId: publicacion.id });
+    await conToken(token).del(`/api/publicaciones/${publicacion.id}`);
+    const [despues] = (await conToken(token).get('/api/libros')).body.datos;
+    expect(despues).toMatchObject({ publicado: false, publicacionId: null });
+  });
+
+  it('una publicacion reservada no acepta nota, foto ni retiro (409)', async () => {
+    const { token, publicacion } = await conPublicacion();
+    await estado.ejecutar(`UPDATE publicaciones SET estado = 'reservada' WHERE id = $1`, [publicacion.id]);
+    const yo = conToken(token);
+    expect((await yo.put(`/api/publicaciones/${publicacion.id}`, { nota: 'x' })).status).toBe(409);
+    expect((await yo.del(`/api/publicaciones/${publicacion.id}`)).status).toBe(409);
+    const foto = await request(app)
+      .put(`/api/publicaciones/${publicacion.id}/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Content-Type', 'image/jpeg')
+      .send(JPEG);
+    expect(foto.status).toBe(409);
+  });
+
+  it('una publicacion reservada sale de Explorar pero su detalle sigue respondiendo', async () => {
+    const { publicacion } = await conPublicacion();
+    await estado.ejecutar(`UPDATE publicaciones SET estado = 'reservada' WHERE id = $1`, [publicacion.id]);
+    expect((await request(app).get('/api/publicaciones')).body.paginacion.total).toBe(0);
+    const detalle = await request(app).get(`/api/publicaciones/${publicacion.id}`);
+    expect(detalle.body.publicacion.estado).toBe('reservada');
+  });
+
+  it('una cuenta bloqueada desaparece de Explorar con todas sus publicaciones', async () => {
+    const { id } = await conPublicacion();
+    await estado.ejecutar(`UPDATE usuarios SET estado = 'bloqueada' WHERE id = $1`, [id]);
+    expect((await request(app).get('/api/publicaciones')).body.datos).toEqual([]);
+  });
+});
