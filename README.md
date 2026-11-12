@@ -9,6 +9,8 @@ Producción: https://letrados-dusky.vercel.app
 | 1 (v0.1.0) | Módulo 1 · Autenticación: registro, inicio y cierre de sesión, recuperación de contraseña | RF-01 a RF-04 |
 | 2 (v0.2.0) | Módulo 2 · Usuarios y roles: sesiones revocables, perfil propio y público, administración de cuentas, baja | RF-05 a RF-09 |
 | 2 (v0.2.0) | Módulo 3 · Catálogo de libros: alta, modificación, retiro y consulta | RF-10 a RF-13 |
+| 3 (v1.0.0) | Módulo 4 · Publicaciones e intercambios: publicar con foto, explorar, solicitar, aceptar o rechazar, cancelar y confirmar | RF-14 a RF-21 |
+| 3 (v1.0.0) | Módulo 5 · Plazo, reportes y valoraciones: vencimiento y flagueo, reportes, panel del administrador, valoraciones y reputación | RF-22 a RF-27 |
 
 ## Tecnologías
 
@@ -66,6 +68,7 @@ Vite redirige `/api` al backend, así que en desarrollo no hace falta CORS.
 | `npm run servir` | Sirve sin compilar. Solo si ya compilaste antes. |
 | `npm test` | Pruebas de los dos workspaces, con cobertura. |
 | `npm run migrar` | Aplica las migraciones pendientes. Antes de tocar nada avisa a qué base va a aplicar. |
+| `npm run sembrar:demo` | Carga los datos de demostración de la entrega final. Ver «Datos de demostración». |
 | `npm run docs` | Genera la documentación del código (JSDoc) y de la API (OpenAPI) en `frontend/public/documentacion/`. |
 
 **`npm run dev` y `npm start` no son lo mismo.** En `dev` el frontend lo sirve
@@ -93,6 +96,22 @@ Con una cuenta administradora (ver abajo) y una cuenta común de prueba:
 4. **Administración (RF-06, RF-07).** Con la cuenta común, `/admin/cuentas` no está disponible. Con la administradora, buscar la cuenta común y bloquearla escribiendo su nombre: su sesión abierta se cierra y el login responde «Tu cuenta no está habilitada». Desbloquearla y volver a entrar.
 5. **Baja (RF-09).** Con la cuenta común, *Perfil → Dar de baja*: pide la contraseña y escribir BAJA. Después, su perfil público figura como «Cuenta eliminada» y ya no puede entrar.
 
+## Recorrido de demostración (ciclo 3)
+
+Con dos cuentas comunes, A y B, y una administradora. Antes de empezar, bajar
+el plazo a 10 segundos (ver «Bajar el plazo de confirmación para la demo») y
+volverlo a 24 horas al terminar.
+
+1. **Publicar con foto (RF-14).** Con A, en *Mis libros*, agregar un libro con los datos nuevos (editorial, año, ISBN, estado de conservación) y *Publicar*, eligiendo una foto. Un PDF o una imagen de más de 2 MB se rechazan.
+2. **Explorar (RF-15, RF-16).** Sin sesión, *Explorar* muestra la publicación con su foto y la encuentra por parte del título. Con A, la propia figura «Tuya» y no ofrece solicitarla.
+3. **Solicitar y aceptar (RF-17 a RF-20).** Con B, abrir la publicación y *Solicitar intercambio* ofreciendo un libro propio. Con A, en *Solicitudes → Recibidas*, *Aceptar*: la publicación sale de Explorar y aparece la fecha límite. Cualquiera de las dos puede *Cancelar* mientras no esté completada.
+4. **Confirmar y valorar (RF-21, RF-25 a RF-27).** Las dos cuentas hacen *Confirmar entrega* antes de que venza el plazo: pasa a «Completada». Cada una valora a la otra, una sola vez, y la valoración aparece en el perfil público de la valorada.
+5. **Flaguear y reportar (RF-22 a RF-24).** Repetir el paso 3 con otro libro y no confirmar: a los 10 segundos, al recargar, figura «Flagueada». Con B, *Reportar un inconveniente*.
+6. **Administración (RF-23, RF-24).** Con la administradora, *Flagueados* (`/admin/flagueados`) lista el intercambio con las dos partes, los dos libros y el reporte. Con una cuenta común, la ruta no está disponible.
+
+Con los datos de demostración (ver abajo) los estados de los pasos 4 y 5 ya
+están cargados, así que se muestran sin esperar el plazo.
+
 ## Crear el primer administrador
 
 Toda cuenta nueva nace con el rol `usuario` (RF-06) y no hay pantalla para
@@ -105,6 +124,26 @@ UPDATE usuarios SET rol = 'administrador' WHERE lower(email) = lower('correo@eje
 
 El cambio vale al instante, sin volver a iniciar sesión: el rol se lee de la
 base en cada petición, no del token.
+
+## Datos de demostración
+
+`npm run sembrar:demo` carga en la base de `DATABASE_URL` lo que muestra la
+presentación de la entrega final:
+
+- **Cuentas:** dos comunes (`mariana@ejemplo.com` y `diego@ejemplo.com`) y una administradora (`admin@ejemplo.com`).
+- **Libros y publicaciones:** seis libros con los datos nuevos y cinco publicaciones con foto.
+- **Intercambios:** uno completado y valorado, uno flagueado con un reporte y uno pendiente.
+
+La contraseña de las tres cuentas no vive en el repositorio: se pasa al correrlo.
+
+```bash
+DEMO_CONTRASENA='…' npm run sembrar:demo
+```
+
+Pasa por las mismas reglas que la API, porque usa las funciones del dominio. No
+cambia el plazo de confirmación: el flagueado se acepta con una fecha corrida
+hacia atrás. Si alguna de las tres cuentas ya existe, se detiene sin escribir
+nada. Las tapas son imágenes generadas, en `backend/scripts/demo/`.
 
 ## Bajar el plazo de confirmación para la demo
 

@@ -205,17 +205,136 @@ export function validarNombrePerfil(cuerpo = {}) {
 
 const LARGO_MAX_TITULO = 200;
 const LARGO_MAX_AUTOR = 200;
+const LARGO_MAX_EDITORIAL = 120;
+const LARGO_MAX_EDICION = 60;
+const LARGO_MAX_DESCRIPCION = 500;
+const ANIO_MINIMO = 1450;
+
+/** Valores admitidos para `estadoConservacion` (CHECK de la migracion 005). */
+export const ESTADOS_CONSERVACION = ['nuevo', 'muy_bueno', 'bueno', 'gastado'];
+
+// ISBN-10 (nueve digitos y un ultimo digito o X) o ISBN-13, ya sin separadores.
+const FORMATO_ISBN = /^(\d{9}[\dX]|\d{13})$/;
 
 /**
- * Alta y modificacion de un libro (RF-10, RF-11). Los tres campos completos
- * siempre: la modificacion es reemplazo, no parche.
+ * Texto opcional: ausente, `null` o vacio despues de recortar -> `null`.
+ * Otro tipo que no sea texto, o un largo mayor al tope, agrega un detalle.
+ *
+ * @param {unknown} crudo
+ * @param {{ campo: string, etiqueta: string, maximo: number }} regla
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function textoOpcional(crudo, { campo, etiqueta, maximo }, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  if (typeof crudo !== 'string') {
+    detalles.push({ campo, mensaje: `${etiqueta} debe ser texto` });
+    return null;
+  }
+  const texto = crudo.trim();
+  if (texto === '') return null;
+  if (texto.length > maximo) {
+    detalles.push({ campo, mensaje: `${etiqueta} no puede superar los ${maximo} caracteres` });
+  }
+  return texto;
+}
+
+/**
+ * Año de publicacion opcional: entero entre 1450 y el año actual. Acepta
+ * `1963` o `"1963"` (lo que manda un input); vacio -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ * @returns {number | null}
+ */
+function anioOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  if (typeof crudo === 'string' &amp;&amp; crudo.trim() === '') return null;
+
+  const esEnteroTexto = typeof crudo === 'string' &amp;&amp; /^\s*\d+\s*$/.test(crudo);
+  const anio =
+    typeof crudo === 'number' ? crudo : esEnteroTexto ? Number.parseInt(crudo, 10) : NaN;
+  const actual = new Date().getFullYear();
+
+  if (!Number.isInteger(anio) || anio &lt; ANIO_MINIMO || anio > actual) {
+    detalles.push({
+      campo: 'anio',
+      mensaje: `El año debe ser un número entero entre ${ANIO_MINIMO} y ${actual}`,
+    });
+    return null;
+  }
+  return anio;
+}
+
+/**
+ * ISBN opcional. Se quitan guiones y espacios, y la `x` final pasa a `X`.
+ * Solo se valida el formato: no se consulta ningun catalogo externo.
+ *
+ * @param {unknown} crudo
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function isbnOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null) return null;
+  const mensaje = 'El ISBN debe tener 10 caracteres (el último puede ser X) o 13 dígitos';
+  if (typeof crudo !== 'string') {
+    detalles.push({ campo: 'isbn', mensaje });
+    return null;
+  }
+  const isbn = crudo.replace(/[\s-]/g, '').toUpperCase();
+  if (isbn === '') return null;
+  if (!FORMATO_ISBN.test(isbn)) {
+    detalles.push({ campo: 'isbn', mensaje });
+    return null;
+  }
+  return isbn;
+}
+
+/**
+ * Estado de conservacion opcional: uno de `ESTADOS_CONSERVACION`; vacio -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function estadoConservacionOpcional(crudo, detalles) {
+  if (crudo === undefined || crudo === null || crudo === '') return null;
+  if (typeof crudo !== 'string' || !ESTADOS_CONSERVACION.includes(crudo)) {
+    detalles.push({
+      campo: 'estadoConservacion',
+      mensaje: 'El estado de conservación debe ser nuevo, muy_bueno, bueno o gastado',
+    });
+    return null;
+  }
+  return crudo;
+}
+
+/**
+ * @typedef {object} DatosLibro
+ * @property {string} titulo
+ * @property {string} autor
+ * @property {number} cantidad
+ * @property {string | null} editorial
+ * @property {number | null} anio
+ * @property {string | null} edicion
+ * @property {string | null} isbn - sin guiones ni espacios.
+ * @property {string | null} estadoConservacion
+ * @property {string | null} descripcion
+ */
+
+/**
+ * Alta y modificacion de un libro (RF-10, RF-11 v1.1). La modificacion es
+ * reemplazo, no parche: un dato opcional que no viene queda en `null`.
  *
  * - `titulo` y `autor`: obligatorios, hasta 200 caracteres, recortados.
  * - `cantidad`: entero >= 1. Se acepta `2` o `"2"` (lo que manda un input),
  *   no `2.5`, `"dos"` ni `0`.
+ * - Opcionales (LET-119): `editorial` (hasta 120), `anio` (entero entre 1450 y
+ *   el año actual), `edicion` (hasta 60), `isbn` (10 o 13, sin separadores),
+ *   `estadoConservacion` (`ESTADOS_CONSERVACION`) y `descripcion` (hasta 500).
  *
  * @param {Record&lt;string, unknown>} cuerpo
- * @returns {{ titulo: string, autor: string, cantidad: number }}
+ * @returns {DatosLibro}
  */
 export function validarLibro(cuerpo = {}) {
   const detalles = [];
@@ -252,8 +371,161 @@ export function validarLibro(cuerpo = {}) {
     });
   }
 
+  const editorial = textoOpcional(
+    cuerpo.editorial,
+    { campo: 'editorial', etiqueta: 'La editorial', maximo: LARGO_MAX_EDITORIAL },
+    detalles,
+  );
+  const anio = anioOpcional(cuerpo.anio, detalles);
+  const edicion = textoOpcional(
+    cuerpo.edicion,
+    { campo: 'edicion', etiqueta: 'La edición', maximo: LARGO_MAX_EDICION },
+    detalles,
+  );
+  const isbn = isbnOpcional(cuerpo.isbn, detalles);
+  const estadoConservacion = estadoConservacionOpcional(cuerpo.estadoConservacion, detalles);
+  const descripcion = textoOpcional(
+    cuerpo.descripcion,
+    { campo: 'descripcion', etiqueta: 'La descripción', maximo: LARGO_MAX_DESCRIPCION },
+    detalles,
+  );
+
   lanzarSiHay(detalles);
-  return { titulo, autor, cantidad };
+  return {
+    titulo,
+    autor,
+    cantidad,
+    editorial,
+    anio,
+    edicion,
+    isbn,
+    estadoConservacion,
+    descripcion,
+  };
+}
+
+const LARGO_MAX_NOTA = 300;
+
+/**
+ * Nota opcional de una publicacion: recortada, hasta 300; vacia -> `null`.
+ *
+ * @param {unknown} crudo
+ * @param {Array&lt;{ campo: string, mensaje: string }>} detalles
+ * @returns {string | null}
+ */
+function notaOpcional(crudo, detalles) {
+  return textoOpcional(
+    crudo,
+    { campo: 'nota', etiqueta: 'La nota', maximo: LARGO_MAX_NOTA },
+    detalles,
+  );
+}
+
+/**
+ * Alta de una publicacion (RF-14, LET-129): el libro propio que se publica y
+ * una nota opcional. El id viaja como texto o numero (lo que mande el cliente).
+ *
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ libroId: string, nota: string | null }}
+ */
+export function validarPublicacion(cuerpo = {}) {
+  const detalles = [];
+  const crudo = cuerpo.libroId;
+  const libroId = typeof crudo === 'number' || typeof crudo === 'string' ? String(crudo).trim() : '';
+  if (!esIdValido(libroId)) {
+    detalles.push({ campo: 'libroId', mensaje: 'Elegí un libro de tu catálogo' });
+  }
+  const nota = notaOpcional(cuerpo.nota, detalles);
+  lanzarSiHay(detalles);
+  return { libroId, nota };
+}
+
+/**
+ * Cambio de la nota de una publicacion (RF-14, LET-129). Reemplazo: si no
+ * viene, queda en `null`.
+ *
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ nota: string | null }}
+ */
+export function validarNota(cuerpo = {}) {
+  const detalles = [];
+  const nota = notaOpcional(cuerpo.nota, detalles);
+  lanzarSiHay(detalles);
+  return { nota };
+}
+
+/**
+ * Alta de una solicitud de intercambio (RF-17, LET-144): la publicacion que
+ * se pide y el libro propio que se ofrece, como texto o numero.
+ *
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ publicacionId: string, libroOfrecidoId: string }}
+ */
+export function validarSolicitud(cuerpo = {}) {
+  const detalles = [];
+  const texto = (crudo) =>
+    typeof crudo === 'number' || typeof crudo === 'string' ? String(crudo).trim() : '';
+  const publicacionId = texto(cuerpo.publicacionId);
+  const libroOfrecidoId = texto(cuerpo.libroOfrecidoId);
+  if (!esIdValido(publicacionId)) {
+    detalles.push({ campo: 'publicacionId', mensaje: 'Falta la publicación que querés solicitar' });
+  }
+  if (!esIdValido(libroOfrecidoId)) {
+    detalles.push({ campo: 'libroOfrecidoId', mensaje: 'Elegí un libro de tu catálogo para ofrecer' });
+  }
+  lanzarSiHay(detalles);
+  return { publicacionId, libroOfrecidoId };
+}
+
+const LARGO_MAX_REPORTE = 1000;
+
+/**
+ * Reporte de un inconveniente (RF-24, LET-156): descripcion obligatoria,
+ * recortada, hasta 1000 caracteres.
+ *
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ descripcion: string }}
+ */
+export function validarReporte(cuerpo = {}) {
+  const descripcion = typeof cuerpo.descripcion === 'string' ? cuerpo.descripcion.trim() : '';
+  const detalles = [];
+  if (descripcion === '') {
+    detalles.push({ campo: 'descripcion', mensaje: 'Contá qué pasó con el intercambio' });
+  } else if (descripcion.length > LARGO_MAX_REPORTE) {
+    detalles.push({
+      campo: 'descripcion',
+      mensaje: `El reporte no puede superar los ${LARGO_MAX_REPORTE} caracteres`,
+    });
+  }
+  lanzarSiHay(detalles);
+  return { descripcion };
+}
+
+const LARGO_MAX_COMENTARIO = 500;
+
+/**
+ * Valoracion de la contraparte (RF-25, LET-163): puntaje entero de 1 a 5
+ * (numero o texto, lo que mande el cliente) y comentario opcional de hasta 500.
+ *
+ * @param {Record&lt;string, unknown>} cuerpo
+ * @returns {{ puntaje: number, comentario: string | null }}
+ */
+export function validarValoracion(cuerpo = {}) {
+  const detalles = [];
+  const crudo = cuerpo.puntaje;
+  const esEnteroTexto = typeof crudo === 'string' &amp;&amp; /^\s*\d+\s*$/.test(crudo);
+  const puntaje =
+    typeof crudo === 'number' ? crudo : esEnteroTexto ? Number.parseInt(crudo, 10) : NaN;
+  if (!Number.isInteger(puntaje) || puntaje &lt; 1 || puntaje > 5) {
+    detalles.push({ campo: 'puntaje', mensaje: 'Elegí un puntaje entero de 1 a 5' });
+  }
+  const comentario = textoOpcional(
+    cuerpo.comentario,
+    { campo: 'comentario', etiqueta: 'El comentario', maximo: LARGO_MAX_COMENTARIO },
+    detalles,
+  );
+  lanzarSiHay(detalles);
+  return { puntaje, comentario };
 }
 
 /**
@@ -316,7 +588,7 @@ export function validarCambioContrasena(cuerpo = {}) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#HASH_INUTILIZABLE">HASH_INUTILIZABLE</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#NOMBRE_CUENTA_ELIMINADA">NOMBRE_CUENTA_ELIMINADA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#POR_PAGINA_MAX">POR_PAGINA_MAX</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#actualizarEstadoCuenta">actualizarEstadoCuenta</a></li><li><a href="global.html#actualizarLibro">actualizarLibro</a></li><li><a href="global.html#actualizarNombre">actualizarNombre</a></li><li><a href="global.html#agregarLibro">agregarLibro</a></li><li><a href="global.html#anonimizarUsuario">anonimizarUsuario</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#archivarLibro">archivarLibro</a></li><li><a href="global.html#archivarLibrosDeUsuario">archivarLibrosDeUsuario</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#bloquearCuenta">bloquearCuenta</a></li><li><a href="global.html#bloquearFilaUsuario">bloquearFilaUsuario</a></li><li><a href="global.html#bloquearLibroPropio">bloquearLibroPropio</a></li><li><a href="global.html#borrarLibro">borrarLibro</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarHashDeUsuario">buscarHashDeUsuario</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#cambiarContrasena">cambiarContrasena</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contarEstorbosDeRetiro">contarEstorbosDeRetiro</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#darDeBaja">darDeBaja</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#desbloquearCuenta">desbloquearCuenta</a></li><li><a href="global.html#disponiblesDe">disponiblesDe</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esIdValido">esIdValido</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#idValido">idValido</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarLibro">insertarLibro</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#libroNoEncontrado">libroNoEncontrado</a></li><li><a href="global.html#listarCuentas">listarCuentas</a></li><li><a href="global.html#listarLibros">listarLibros</a></li><li><a href="global.html#listarLibrosDeUsuario">listarLibrosDeUsuario</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#modificarLibro">modificarLibro</a></li><li><a href="global.html#modificarNombre">modificarNombre</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#perfilPublico">perfilPublico</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#recortar">recortar</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#reputacionDe">reputacionDe</a></li><li><a href="global.html#retirarLibro">retirarLibro</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAdmin">rutasAdmin</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasLibros">rutasLibros</a></li><li><a href="global.html#rutasPerfil">rutasPerfil</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#sesionOpcional">sesionOpcional</a></li><li><a href="global.html#tieneIntercambiosCompletados">tieneIntercambiosCompletados</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarBaja">validarBaja</a></li><li><a href="global.html#validarCambioContrasena">validarCambioContrasena</a></li><li><a href="global.html#validarCambioDeBloqueo">validarCambioDeBloqueo</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLibro">validarLibro</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarNombrePerfil">validarNombrePerfil</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#verPerfil">verPerfil</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaCuenta">vistaCuenta</a></li><li><a href="global.html#vistaLibro">vistaLibro</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ErrorDominio.html">ErrorDominio</a></li></ul><h3>Global</h3><ul><li><a href="global.html#BYTES_MAX_FOTO">BYTES_MAX_FOTO</a></li><li><a href="global.html#CANCELABLES">CANCELABLES</a></li><li><a href="global.html#CLAVES_SENSIBLES">CLAVES_SENSIBLES</a></li><li><a href="global.html#CLAVE_PLAZO">CLAVE_PLAZO</a></li><li><a href="global.html#CONFIRMABLES">CONFIRMABLES</a></li><li><a href="global.html#COSTE">COSTE</a></li><li><a href="global.html#ESTADOS">ESTADOS</a></li><li><a href="global.html#ESTADOS_ABIERTOS">ESTADOS_ABIERTOS</a></li><li><a href="global.html#ESTADOS_CONSERVACION">ESTADOS_CONSERVACION</a></li><li><a href="global.html#FORMATO_EMAIL">FORMATO_EMAIL</a></li><li><a href="global.html#HASH_FICTICIO">HASH_FICTICIO</a></li><li><a href="global.html#HASH_INUTILIZABLE">HASH_INUTILIZABLE</a></li><li><a href="global.html#MINUTOS_DE_VIGENCIA">MINUTOS_DE_VIGENCIA</a></li><li><a href="global.html#MOTIVO_FLAGUEO">MOTIVO_FLAGUEO</a></li><li><a href="global.html#MOTIVO_NO_MODIFICABLE">MOTIVO_NO_MODIFICABLE</a></li><li><a href="global.html#NOMBRE_CUENTA_ELIMINADA">NOMBRE_CUENTA_ELIMINADA</a></li><li><a href="global.html#OBLIGATORIAS">OBLIGATORIAS</a></li><li><a href="global.html#PLAZO_POR_DEFECTO_SEGUNDOS">PLAZO_POR_DEFECTO_SEGUNDOS</a></li><li><a href="global.html#POR_PAGINA_MAX">POR_PAGINA_MAX</a></li><li><a href="global.html#SIN_VALORACIONES">SIN_VALORACIONES</a></li><li><a href="global.html#TIPOS_FOTO">TIPOS_FOTO</a></li><li><a href="global.html#VIOLACION_UNICIDAD">VIOLACION_UNICIDAD</a></li><li><a href="global.html#YA_VALORADA">YA_VALORADA</a></li><li><a href="global.html#aCampos">aCampos</a></li><li><a href="global.html#abrirSesion">abrirSesion</a></li><li><a href="global.html#accesoDenegado">accesoDenegado</a></li><li><a href="global.html#aceptar">aceptar</a></li><li><a href="global.html#actualizarContrasena">actualizarContrasena</a></li><li><a href="global.html#actualizarEstadoCuenta">actualizarEstadoCuenta</a></li><li><a href="global.html#actualizarLibro">actualizarLibro</a></li><li><a href="global.html#actualizarNombre">actualizarNombre</a></li><li><a href="global.html#actualizarNota">actualizarNota</a></li><li><a href="global.html#agregarLibro">agregarLibro</a></li><li><a href="global.html#anioOpcional">anioOpcional</a></li><li><a href="global.html#anonimizarUsuario">anonimizarUsuario</a></li><li><a href="global.html#api">api</a></li><li><a href="global.html#archivarLibro">archivarLibro</a></li><li><a href="global.html#archivarLibrosDeUsuario">archivarLibrosDeUsuario</a></li><li><a href="global.html#archivoDemasiadoGrande">archivoDemasiadoGrande</a></li><li><a href="global.html#autenticar">autenticar</a></li><li><a href="global.html#bloquearComoParte">bloquearComoParte</a></li><li><a href="global.html#bloquearCuenta">bloquearCuenta</a></li><li><a href="global.html#bloquearFilaUsuario">bloquearFilaUsuario</a></li><li><a href="global.html#bloquearLibro">bloquearLibro</a></li><li><a href="global.html#bloquearLibroPropio">bloquearLibroPropio</a></li><li><a href="global.html#bloquearLibrosDe">bloquearLibrosDe</a></li><li><a href="global.html#bloquearPublicacion">bloquearPublicacion</a></li><li><a href="global.html#bloquearPublicacionModificable">bloquearPublicacionModificable</a></li><li><a href="global.html#bloquearPublicacionPropia">bloquearPublicacionPropia</a></li><li><a href="global.html#bloquearSolicitud">bloquearSolicitud</a></li><li><a href="global.html#borrarFoto">borrarFoto</a></li><li><a href="global.html#borrarLibro">borrarLibro</a></li><li><a href="global.html#borrarSesionesVencidas">borrarSesionesVencidas</a></li><li><a href="global.html#buscarHashDeUsuario">buscarHashDeUsuario</a></li><li><a href="global.html#buscarPublicacion">buscarPublicacion</a></li><li><a href="global.html#buscarSesionVigente">buscarSesionVigente</a></li><li><a href="global.html#buscarSolicitud">buscarSolicitud</a></li><li><a href="global.html#buscarTokenVigentePorHash">buscarTokenVigentePorHash</a></li><li><a href="global.html#buscarUsuarioPorEmail">buscarUsuarioPorEmail</a></li><li><a href="global.html#buscarUsuarioPorId">buscarUsuarioPorId</a></li><li><a href="global.html#cache">cache</a></li><li><a href="global.html#calcularVencimiento">calcularVencimiento</a></li><li><a href="global.html#cambiarContrasena">cambiarContrasena</a></li><li><a href="global.html#cambiarEstadoPublicacion">cambiarEstadoPublicacion</a></li><li><a href="global.html#cancelar">cancelar</a></li><li><a href="global.html#cancelarBloqueada">cancelarBloqueada</a></li><li><a href="global.html#cerrarPendientesDePublicacion">cerrarPendientesDePublicacion</a></li><li><a href="global.html#cerrarPool">cerrarPool</a></li><li><a href="global.html#cerrarSesion">cerrarSesion</a></li><li><a href="global.html#cerrarSolicitud">cerrarSolicitud</a></li><li><a href="global.html#conBeginCommit">conBeginCommit</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#confirmar">confirmar</a></li><li><a href="global.html#confirmarRecuperacion">confirmarRecuperacion</a></li><li><a href="global.html#construirConfig">construirConfig</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#contarEstorbosDeRetiro">contarEstorbosDeRetiro</a></li><li><a href="global.html#contrasenaIncorrecta">contrasenaIncorrecta</a></li><li><a href="global.html#crearApp">crearApp</a></li><li><a href="global.html#credencialesInvalidas">credencialesInvalidas</a></li><li><a href="global.html#cuentaBloqueada">cuentaBloqueada</a></li><li><a href="global.html#darDeBaja">darDeBaja</a></li><li><a href="global.html#datosInvalidos">datosInvalidos</a></li><li><a href="global.html#datosOpcionales">datosOpcionales</a></li><li><a href="global.html#desbloquearCuenta">desbloquearCuenta</a></li><li><a href="global.html#disponiblesDe">disponiblesDe</a></li><li><a href="global.html#emailDuplicado">emailDuplicado</a></li><li><a href="global.html#enTransaccion">enTransaccion</a></li><li><a href="global.html#enviarConProveedorReal">enviarConProveedorReal</a></li><li><a href="global.html#enviarCorreo">enviarCorreo</a></li><li><a href="global.html#enviarPorConsola">enviarPorConsola</a></li><li><a href="global.html#esIdValido">esIdValido</a></li><li><a href="global.html#esTextoNoVacio">esTextoNoVacio</a></li><li><a href="global.html#escribir">escribir</a></li><li><a href="global.html#estadoConservacionOpcional">estadoConservacionOpcional</a></li><li><a href="global.html#estadoInvalido">estadoInvalido</a></li><li><a href="global.html#exigirPendienteDelDuenio">exigirPendienteDelDuenio</a></li><li><a href="global.html#exigirRol">exigirRol</a></li><li><a href="global.html#firmar">firmar</a></li><li><a href="global.html#flaguearVencidas">flaguearVencidas</a></li><li><a href="global.html#guardarFoto">guardarFoto</a></li><li><a href="global.html#hashDeToken">hashDeToken</a></li><li><a href="global.html#hashear">hashear</a></li><li><a href="global.html#idPublicacion">idPublicacion</a></li><li><a href="global.html#idSolicitud">idSolicitud</a></li><li><a href="global.html#idValido">idValido</a></li><li><a href="global.html#iniciarSesion">iniciarSesion</a></li><li><a href="global.html#insertarLibro">insertarLibro</a></li><li><a href="global.html#insertarPublicacion">insertarPublicacion</a></li><li><a href="global.html#insertarReporte">insertarReporte</a></li><li><a href="global.html#insertarSesion">insertarSesion</a></li><li><a href="global.html#insertarSolicitud">insertarSolicitud</a></li><li><a href="global.html#insertarToken">insertarToken</a></li><li><a href="global.html#insertarUsuario">insertarUsuario</a></li><li><a href="global.html#insertarValoracion">insertarValoracion</a></li><li><a href="global.html#invalidarTokensPendientesDeUsuario">invalidarTokensPendientesDeUsuario</a></li><li><a href="global.html#isbnOpcional">isbnOpcional</a></li><li><a href="global.html#jsonInvalido">jsonInvalido</a></li><li><a href="global.html#lanzarSiHay">lanzarSiHay</a></li><li><a href="global.html#leerFoto">leerFoto</a></li><li><a href="global.html#leerParametro">leerParametro</a></li><li><a href="global.html#libroNoEncontrado">libroNoEncontrado</a></li><li><a href="global.html#listar">listar</a></li><li><a href="global.html#listarActivas">listarActivas</a></li><li><a href="global.html#listarCuentas">listarCuentas</a></li><li><a href="global.html#listarFlagueadas">listarFlagueadas</a></li><li><a href="global.html#listarFlagueados">listarFlagueados</a></li><li><a href="global.html#listarLibros">listarLibros</a></li><li><a href="global.html#listarLibrosDeUsuario">listarLibrosDeUsuario</a></li><li><a href="global.html#listarPublicacionesActivas">listarPublicacionesActivas</a></li><li><a href="global.html#listarRecibidas">listarRecibidas</a></li><li><a href="global.html#listarSolicitudesDe">listarSolicitudesDe</a></li><li><a href="global.html#manejadorErrores">manejadorErrores</a></li><li><a href="global.html#marcarAceptada">marcarAceptada</a></li><li><a href="global.html#marcarConfirmacion">marcarConfirmacion</a></li><li><a href="global.html#marcarTokenUsado">marcarTokenUsado</a></li><li><a href="global.html#miValoracion">miValoracion</a></li><li><a href="global.html#modificarLibro">modificarLibro</a></li><li><a href="global.html#modificarNombre">modificarNombre</a></li><li><a href="global.html#modificarNota">modificarNota</a></li><li><a href="global.html#moverEjemplar">moverEjemplar</a></li><li><a href="global.html#noEncontrado">noEncontrado</a></li><li><a href="global.html#noImplementado">noImplementado</a></li><li><a href="global.html#notaOpcional">notaOpcional</a></li><li><a href="global.html#nuevoJti">nuevoJti</a></li><li><a href="global.html#obtenerCliente">obtenerCliente</a></li><li><a href="global.html#obtenerConfig">obtenerConfig</a></li><li><a href="global.html#obtenerPool">obtenerPool</a></li><li><a href="global.html#parteDe">parteDe</a></li><li><a href="global.html#pedirRecuperacion">pedirRecuperacion</a></li><li><a href="global.html#perfilPublico">perfilPublico</a></li><li><a href="global.html#pool">pool</a></li><li><a href="global.html#publicacionNoEncontrada">publicacionNoEncontrada</a></li><li><a href="global.html#publicacionVigenteDeLibro">publicacionVigenteDeLibro</a></li><li><a href="global.html#publicacionesActivasDeUsuario">publicacionesActivasDeUsuario</a></li><li><a href="global.html#publicacionesVigentesDeLibros">publicacionesVigentesDeLibros</a></li><li><a href="global.html#publicar">publicar</a></li><li><a href="global.html#puedoCon">puedoCon</a></li><li><a href="global.html#quitarFoto">quitarFoto</a></li><li><a href="global.html#rechazar">rechazar</a></li><li><a href="global.html#recortar">recortar</a></li><li><a href="global.html#redactar">redactar</a></li><li><a href="global.html#registrar">registrar</a></li><li><a href="global.html#reiniciarConfig">reiniciarConfig</a></li><li><a href="global.html#reportar">reportar</a></li><li><a href="global.html#reportesDeSolicitudes">reportesDeSolicitudes</a></li><li><a href="global.html#reputacionDe">reputacionDe</a></li><li><a href="global.html#reputacionesDe">reputacionesDe</a></li><li><a href="global.html#retirar">retirar</a></li><li><a href="global.html#retirarLibro">retirarLibro</a></li><li><a href="global.html#retirarPublicacionesDeUsuario">retirarPublicacionesDeUsuario</a></li><li><a href="global.html#revisarContrasenaNueva">revisarContrasenaNueva</a></li><li><a href="global.html#revocarSesion">revocarSesion</a></li><li><a href="global.html#revocarSesionesDeUsuario">revocarSesionesDeUsuario</a></li><li><a href="global.html#rutaNoEncontrada">rutaNoEncontrada</a></li><li><a href="global.html#rutasAdmin">rutasAdmin</a></li><li><a href="global.html#rutasAuth">rutasAuth</a></li><li><a href="global.html#rutasLibros">rutasLibros</a></li><li><a href="global.html#rutasPerfil">rutasPerfil</a></li><li><a href="global.html#rutasPublicaciones">rutasPublicaciones</a></li><li><a href="global.html#rutasSalud">rutasSalud</a></li><li><a href="global.html#rutasSolicitudes">rutasSolicitudes</a></li><li><a href="global.html#segundosDePlazo">segundosDePlazo</a></li><li><a href="global.html#sesionInvalida">sesionInvalida</a></li><li><a href="global.html#sesionOpcional">sesionOpcional</a></li><li><a href="global.html#solicitar">solicitar</a></li><li><a href="global.html#solicitudNoEncontrada">solicitudNoEncontrada</a></li><li><a href="global.html#solicitudesAbiertasDeUsuario">solicitudesAbiertasDeUsuario</a></li><li><a href="global.html#subirFoto">subirFoto</a></li><li><a href="global.html#textoOpcional">textoOpcional</a></li><li><a href="global.html#tieneIntercambiosCompletados">tieneIntercambiosCompletados</a></li><li><a href="global.html#tienePendiente">tienePendiente</a></li><li><a href="global.html#tokenInvalido">tokenInvalido</a></li><li><a href="global.html#usuarioActual">usuarioActual</a></li><li><a href="global.html#validarBaja">validarBaja</a></li><li><a href="global.html#validarCambioContrasena">validarCambioContrasena</a></li><li><a href="global.html#validarCambioDeBloqueo">validarCambioDeBloqueo</a></li><li><a href="global.html#validarConfirmacionRecuperacion">validarConfirmacionRecuperacion</a></li><li><a href="global.html#validarLibro">validarLibro</a></li><li><a href="global.html#validarLogin">validarLogin</a></li><li><a href="global.html#validarNombrePerfil">validarNombrePerfil</a></li><li><a href="global.html#validarNota">validarNota</a></li><li><a href="global.html#validarPedidoRecuperacion">validarPedidoRecuperacion</a></li><li><a href="global.html#validarPublicacion">validarPublicacion</a></li><li><a href="global.html#validarRegistro">validarRegistro</a></li><li><a href="global.html#validarReporte">validarReporte</a></li><li><a href="global.html#validarSolicitud">validarSolicitud</a></li><li><a href="global.html#validarValoracion">validarValoracion</a></li><li><a href="global.html#valoracionDe">valoracionDe</a></li><li><a href="global.html#valoracionesRecibidas">valoracionesRecibidas</a></li><li><a href="global.html#valorar">valorar</a></li><li><a href="global.html#vencimientoDe">vencimientoDe</a></li><li><a href="global.html#ver">ver</a></li><li><a href="global.html#verFoto">verFoto</a></li><li><a href="global.html#verPerfil">verPerfil</a></li><li><a href="global.html#verPublicacion">verPublicacion</a></li><li><a href="global.html#verificar">verificar</a></li><li><a href="global.html#vistaCuenta">vistaCuenta</a></li><li><a href="global.html#vistaLibro">vistaLibro</a></li><li><a href="global.html#vistaPublica">vistaPublica</a></li><li><a href="global.html#vistaPublicacion">vistaPublicacion</a></li><li><a href="global.html#vistaReporte">vistaReporte</a></li><li><a href="global.html#vistaSolicitud">vistaSolicitud</a></li><li><a href="global.html#vistaUsuario">vistaUsuario</a></li><li><a href="global.html#vistaValoracion">vistaValoracion</a></li></ul>
 </nav>
 
 <br class="clear">

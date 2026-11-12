@@ -5,7 +5,9 @@ info:
   version: 2.0.0
   description: |
     API de Letrados. Ciclo 1: autenticacion (modulo 1). Ciclo 2: usuarios y
-    roles (modulo 2) y catalogo de libros (modulo 3).
+    roles (modulo 2) y catalogo de libros (modulo 3). Ciclo 3: publicaciones y
+    solicitudes e intercambios (modulo 4), y plazo, reportes y valoraciones
+    (modulo 5).
 
     Las sesiones son revocables: cada token lleva un `jti` registrado en el
     servidor, y cerrar sesion, bloquear una cuenta o darla de baja lo invalida
@@ -39,8 +41,14 @@ tags:
     description: Perfil propio, perfil publico y baja de cuenta (RF-05, RF-08, RF-09)
   - name: Catalogo
     description: Libros del catalogo propio (RF-10 a RF-13)
+  - name: Publicaciones
+    description: Publicar, explorar y retirar publicaciones, con su foto (RF-14 a RF-16)
+  - name: Solicitudes
+    description: Solicitudes e intercambios, reportes y valoraciones (RF-17 a RF-21, RF-24, RF-25)
+  - name: Valoraciones
+    description: Valoraciones recibidas, para el perfil publico (RF-27)
   - name: Administracion
-    description: Cuentas y bloqueo (RF-06, RF-07). Requiere rol administrador.
+    description: Cuentas y bloqueo (RF-06, RF-07) e intercambios flagueados (RF-23, RF-24). Requiere rol administrador.
 
 paths:
   /auth/registro:
@@ -417,6 +425,42 @@ paths:
         '404':
           $ref: '#/components/responses/NoEncontrado'
 
+  /usuarios/{id}/valoraciones:
+    get:
+      tags: [Valoraciones]
+      operationId: listarValoracionesRecibidas
+      summary: Valoraciones recibidas por un usuario (RF-27)
+      description: |
+        Publico, sin sesion. Las valoraciones que recibio la cuenta, de la mas
+        nueva a la mas vieja, con quien la escribio y el intercambio que la
+        habilito. Una cuenta eliminada responde 200 con la lista vacia, igual
+        que su perfil publico.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Pagina'
+        - name: porPagina
+          in: query
+          description: Fuera de rango se recorta, no es error. Aca el defecto es 10.
+          schema: {type: integer, minimum: 1, maximum: 50, default: 10}
+      responses:
+        '200':
+          description: Pagina de valoraciones recibidas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datos, paginacion]
+                properties:
+                  datos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValoracionRecibida'
+                  paginacion:
+                    $ref: '#/components/schemas/Paginacion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
   /libros:
     get:
       tags: [Catalogo]
@@ -543,6 +587,530 @@ paths:
         '409':
           $ref: '#/components/responses/EstadoInvalido'
 
+  /publicaciones:
+    get:
+      tags: [Publicaciones]
+      operationId: listarPublicaciones
+      summary: Explorar las publicaciones activas (RF-15)
+      description: |
+        Publico, sin sesion. Publicaciones `activas` de libros con ejemplares
+        disponibles y de cuentas activas, de la mas nueva a la mas vieja. `q`
+        busca por subcadena en titulo o autor sin distinguir mayusculas.
+
+        Con sesion, las propias vienen con `esMia: true` (la interfaz las
+        marca «Tuya» y no ofrece solicitarlas); un token invalido se ignora y
+        la respuesta es la publica.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Pagina de publicaciones activas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datos, paginacion]
+                properties:
+                  datos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Publicacion'
+                  paginacion:
+                    $ref: '#/components/schemas/Paginacion'
+    post:
+      tags: [Publicaciones]
+      operationId: publicarLibro
+      summary: Publicar un libro propio (RF-14)
+      description: |
+        Publica UN ejemplar de un libro del catalogo propio, con una nota
+        opcional. Un libro tiene como maximo una publicacion vigente.
+
+        - Libro inexistente, ajeno o archivado -> 404, para no revelar que
+          existe.
+        - Sin ejemplares disponibles o ya publicado -> 409.
+      security:
+        - sesion: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoPublicacion'
+      responses:
+        '201':
+          description: Publicacion creada, en estado `activa`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publicacion]
+                properties:
+                  publicacion:
+                    $ref: '#/components/schemas/Publicacion'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /publicaciones/{id}:
+    get:
+      tags: [Publicaciones]
+      operationId: verPublicacion
+      summary: Detalle de una publicacion (RF-16)
+      description: |
+        Publico, sin sesion y en cualquier estado, para que los enlaces del
+        historial no se rompan. Con sesion, `esMia` dice si es de quien mira.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/PublicacionDevuelta'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+    put:
+      tags: [Publicaciones]
+      operationId: modificarNotaPublicacion
+      summary: Cambiar la nota de una publicacion (RF-14)
+      description: |
+        Reemplazo, no parche: sin `nota` en el cuerpo, la borra. Solo sobre
+        una publicacion propia y `activa`: una ajena responde 404, no 403; en
+        otro estado responde 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoNota'
+      responses:
+        '200':
+          $ref: '#/components/responses/PublicacionDevuelta'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+    delete:
+      tags: [Publicaciones]
+      operationId: retirarPublicacion
+      summary: Retirar una publicacion (RF-14)
+      description: |
+        Solo una propia y `activa`. Deja de verse en Explorar y el libro queda
+        libre para volver a publicarse. Sus solicitudes pendientes pasan a
+        `cancelada`, a nombre del dueño, en la misma transaccion.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Publicacion retirada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resultado]
+                properties:
+                  resultado:
+                    type: string
+                    enum: [retirada]
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /publicaciones/{id}/foto:
+    get:
+      tags: [Publicaciones]
+      operationId: verFotoPublicacion
+      summary: La foto de la publicacion (RF-16)
+      description: |
+        Publico, sin sesion y en cualquier estado. Devuelve los bytes de la
+        imagen con su propio `Content-Type`, no JSON. Una publicacion sin
+        foto, inexistente o con id invalido responde 404 (ese error si es JSON,
+        como todos).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Los bytes de la imagen, con su tipo.
+          headers:
+            Cache-Control:
+              description: Siempre `public, max-age=300`.
+              schema: {type: string}
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+    put:
+      tags: [Publicaciones]
+      operationId: subirFotoPublicacion
+      summary: Subir o reemplazar la foto (RF-14)
+      description: |
+        El unico endpoint que no recibe JSON: el cuerpo es la imagen cruda,
+        sin multipart, y el tipo se lee del header `Content-Type`. El tope es
+        de 2 MB. Solo sobre una publicacion propia y `activa`.
+
+        - Tipo no admitido o foto vacia -> 400 con el detalle en el campo `foto`.
+        - Mas de 2 MB -> 413 `ARCHIVO_DEMASIADO_GRANDE`.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        description: La imagen cruda como cuerpo, con su tipo en `Content-Type`.
+        content:
+          image/jpeg:
+            schema: {type: string, format: binary}
+          image/png:
+            schema: {type: string, format: binary}
+          image/webp:
+            schema: {type: string, format: binary}
+      responses:
+        '200':
+          $ref: '#/components/responses/PublicacionDevuelta'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+        '413':
+          $ref: '#/components/responses/ArchivoDemasiadoGrande'
+    delete:
+      tags: [Publicaciones]
+      operationId: quitarFotoPublicacion
+      summary: Quitar la foto (RF-14)
+      description: |
+        Solo sobre una publicacion propia y `activa`. Quitarla cuando no hay
+        foto no es error: el resultado es el mismo.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/PublicacionDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes:
+    post:
+      tags: [Solicitudes]
+      operationId: crearSolicitud
+      summary: Solicitar un intercambio (RF-17)
+      description: |
+        Solicita una publicacion ajena ofreciendo un libro propio. No reserva
+        nada: la disponibilidad se vuelve a verificar al aceptar.
+
+        - Publicacion inexistente -> 404.
+        - Publicacion propia o ya no disponible, libro ofrecido fuera del
+          catalogo o sin ejemplares, o ya hay una pendiente de esta persona
+          sobre la publicacion -> 409.
+      security:
+        - sesion: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoSolicitud'
+      responses:
+        '201':
+          description: Solicitud creada, en estado `pendiente`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [solicitud]
+                properties:
+                  solicitud:
+                    $ref: '#/components/schemas/Solicitud'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+    get:
+      tags: [Solicitudes]
+      operationId: listarSolicitudes
+      summary: Mis solicitudes (RF-18)
+      description: |
+        Las solicitudes del usuario, de la mas nueva a la mas vieja: las
+        `recibidas` sobre sus publicaciones (por defecto) o las `enviadas`.
+        Antes de listar se barren los plazos vencidos: una solicitud que
+        vencio sin las dos confirmaciones ya aparece `flagueada`.
+      security:
+        - sesion: []
+      parameters:
+        - name: rol
+          in: query
+          description: Cualquier valor distinto de `enviadas` lista las recibidas.
+          schema:
+            type: string
+            enum: [recibidas, enviadas]
+            default: recibidas
+        - name: estado
+          in: query
+          description: Un valor desconocido se ignora.
+          schema:
+            $ref: '#/components/schemas/EstadoSolicitud'
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Pagina de solicitudes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datos, paginacion]
+                properties:
+                  datos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Solicitud'
+                  paginacion:
+                    $ref: '#/components/schemas/Paginacion'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+
+  /solicitudes/{id}:
+    get:
+      tags: [Solicitudes]
+      operationId: verSolicitud
+      summary: Ver una solicitud (RF-18)
+      description: |
+        Una solicitud de la que el usuario es parte. Una ajena responde 404,
+        no 403, para no revelar que existe.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitudDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /solicitudes/{id}/aceptar:
+    post:
+      tags: [Solicitudes]
+      operationId: aceptarSolicitud
+      summary: Aceptar una solicitud pendiente (RF-19)
+      description: |
+        Solo el dueño de la publicacion. En una transaccion: reserva un
+        ejemplar de cada libro, deja la publicacion `reservada` (sale de
+        Explorar), rechaza las demas pendientes sobre ella y fija el plazo de
+        confirmacion (RF-22).
+
+        - El solicitante que intenta aceptar -> 403 (la excepcion al 404 de
+          los recursos ajenos).
+        - Ya no pendiente, o un libro que se quedo sin ejemplares disponibles
+          -> 409 nombrandolo, sin cambiar nada.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitudDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes/{id}/rechazar:
+    post:
+      tags: [Solicitudes]
+      operationId: rechazarSolicitud
+      summary: Rechazar una solicitud pendiente (RF-19)
+      description: |
+        Solo el dueño de la publicacion; el solicitante que intenta rechazar
+        recibe 403. La publicacion sigue disponible y las demas pendientes no
+        cambian. Ya no pendiente -> 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitudDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes/{id}/cancelar:
+    post:
+      tags: [Solicitudes]
+      operationId: cancelarSolicitud
+      summary: Cancelar una operacion (RF-20)
+      description: |
+        Cualquiera de las partes, mientras la solicitud este `pendiente`,
+        `aceptada` o `flagueada`. Si ya habia reservas, libera un ejemplar de
+        cada libro y la publicacion vuelve a `activa`, otra vez en Explorar.
+        Rechazada, cancelada o completada -> 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitudDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes/{id}/confirmar:
+    post:
+      tags: [Solicitudes]
+      operationId: confirmarSolicitud
+      summary: Confirmar que el intercambio se concreto (RF-21)
+      description: |
+        Cada parte confirma una sola vez, con la solicitud `aceptada` o
+        `flagueada` (el flagueo avisa, no congela). Con las dos
+        confirmaciones, en la misma transaccion: pasa a `completada`,
+        descuenta un ejemplar de cada libro y cierra la publicacion.
+
+        - Ni aceptada ni flagueada, o confirmar dos veces -> 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitudDevuelta'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes/{id}/reportes:
+    post:
+      tags: [Solicitudes]
+      operationId: reportarInconveniente
+      summary: Reportar un inconveniente (RF-24)
+      description: |
+        Mientras el intercambio esta `flagueada`, cualquiera de las dos partes
+        cuenta que paso, una o mas veces. El administrador los lee junto al
+        intercambio en `/admin/flagueados`. No flagueado -> 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoReporte'
+      responses:
+        '201':
+          description: Reporte registrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reporte]
+                properties:
+                  reporte:
+                    $ref: '#/components/schemas/Reporte'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
+  /solicitudes/{id}/valoracion:
+    post:
+      tags: [Solicitudes]
+      operationId: valorarContraparte
+      summary: Valorar a la contraparte (RF-25)
+      description: |
+        Despues de completar el intercambio, cada parte valora una sola vez a
+        la otra, con un puntaje entero de 1 a 5 y un comentario opcional. No
+        se edita ni se borra. No completado, o ya valorado, -> 409.
+      security:
+        - sesion: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoValoracion'
+      responses:
+        '201':
+          description: Valoracion registrada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valoracion]
+                properties:
+                  valoracion:
+                    $ref: '#/components/schemas/Valoracion'
+        '400':
+          $ref: '#/components/responses/EntradaInvalida'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          $ref: '#/components/responses/EstadoInvalido'
+
   /admin/cuentas:
     get:
       tags: [Administracion]
@@ -623,6 +1191,50 @@ paths:
         '409':
           $ref: '#/components/responses/EstadoInvalido'
 
+  /admin/flagueados:
+    get:
+      tags: [Administracion]
+      operationId: listarFlagueados
+      summary: Intercambios flagueados (RF-23, RF-24)
+      description: |
+        Solo administrador, y solo consulta. Los intercambios que alguna vez
+        vencieron sin las dos confirmaciones, con las dos partes, los dos
+        libros, el estado actual y sus reportes. Por defecto solo los que
+        siguen `flagueada`; `estado=todos` trae tambien los que despues se
+        completaron o cancelaron. Antes de listar se barren los plazos
+        vencidos: lo que vencio recien ya aparece.
+      security:
+        - sesion: []
+      parameters:
+        - name: estado
+          in: query
+          description: Cualquier valor distinto de `todos` deja solo los flagueados.
+          schema:
+            type: string
+            enum: [flagueada, todos]
+            default: flagueada
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Pagina de intercambios flagueados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [datos, paginacion]
+                properties:
+                  datos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flagueado'
+                  paginacion:
+                    $ref: '#/components/schemas/Paginacion'
+        '401':
+          $ref: '#/components/responses/SinSesion'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
 components:
   securitySchemes:
     sesion:
@@ -701,13 +1313,16 @@ components:
         reputacion: {$ref: '#/components/schemas/Reputacion'}
         publicaciones:
           type: array
-          description: Publicaciones activas (llegan con el modulo 4; hoy vacia).
-          items: {type: object}
+          description: Las publicaciones activas del usuario, con la misma forma que Explorar (RF-15).
+          items:
+            $ref: '#/components/schemas/Publicacion'
       additionalProperties: false
 
     Libro:
       type: object
-      required: [id, titulo, autor, total, reservada, disponible, publicado, tieneHistorial, creadoEn]
+      required: [id, titulo, autor, total, reservada, disponible, editorial, anio,
+                 edicion, isbn, estadoConservacion, descripcion, publicado,
+                 publicacionId, tieneHistorial, creadoEn]
       properties:
         id: {type: string, example: '3'}
         titulo: {type: string, example: Rayuela}
@@ -718,7 +1333,22 @@ components:
           type: integer
           description: total - reservada. Se calcula, nunca se guarda.
           example: 1
+        editorial: {type: [string, 'null'], maxLength: 120}
+        anio:
+          type: [integer, 'null']
+          description: Año de publicacion, entre 1450 y el año actual.
+        edicion: {type: [string, 'null'], maxLength: 60}
+        isbn:
+          type: [string, 'null']
+          description: ISBN-10 o ISBN-13, sin guiones ni espacios.
+        estadoConservacion:
+          type: [string, 'null']
+          enum: [nuevo, muy_bueno, bueno, gastado, null]
+        descripcion: {type: [string, 'null'], maxLength: 500}
         publicado: {type: boolean}
+        publicacionId:
+          type: [string, 'null']
+          description: La publicacion vigente del libro, para «Ver publicacion».
         tieneHistorial:
           type: boolean
           description: Si participo en intercambios completados (al retirarlo se archiva).
@@ -726,6 +1356,10 @@ components:
 
     PedidoLibro:
       type: object
+      description: |
+        Alta y modificacion. La modificacion es reemplazo, no parche: un dato
+        opcional que no viene queda en null. Los opcionales aceptan null o
+        vacio (queda null) y se recortan.
       required: [titulo, autor, cantidad]
       properties:
         titulo: {type: string, minLength: 1, maxLength: 200}
@@ -734,6 +1368,275 @@ components:
           type: integer
           minimum: 1
           description: Entero >= 1. Tambien se acepta como texto ("3").
+        editorial: {type: [string, 'null'], maxLength: 120}
+        anio:
+          type: [integer, 'null']
+          minimum: 1450
+          description: Entre 1450 y el año actual. Tambien se acepta como texto ("1963").
+        edicion: {type: [string, 'null'], maxLength: 60}
+        isbn:
+          type: [string, 'null']
+          description: |
+            10 caracteres (el ultimo puede ser X) o 13 digitos. Se quitan
+            guiones y espacios antes de validar.
+        estadoConservacion:
+          type: [string, 'null']
+          enum: [nuevo, muy_bueno, bueno, gastado, null]
+        descripcion: {type: [string, 'null'], maxLength: 500}
+
+    Publicacion:
+      type: object
+      description: |
+        Una publicacion ofrece UN ejemplar de un libro del catalogo. Explorar,
+        el detalle y el perfil publico usan esta misma forma.
+      required: [id, estado, nota, tieneFoto, libro, propietario, esMia, creadaEn]
+      properties:
+        id: {type: string, example: '7'}
+        estado:
+          type: string
+          enum: [activa, reservada, cerrada, retirada]
+          description: |
+            Solo las `activas` salen en Explorar. A `reservada` y `cerrada` la
+            mueven las solicitudes; a `retirada` la mueve su dueño.
+        nota:
+          type: [string, 'null']
+          maxLength: 300
+        tieneFoto: {type: boolean}
+        libro:
+          type: object
+          description: Los datos del libro al dia, leidos del catalogo.
+          required: [id, titulo, autor, editorial, anio, edicion, isbn, estadoConservacion, descripcion, disponible]
+          properties:
+            id: {type: string}
+            titulo: {type: string, example: Rayuela}
+            autor: {type: string, example: Julio Cortazar}
+            editorial: {type: [string, 'null']}
+            anio: {type: [integer, 'null']}
+            edicion: {type: [string, 'null']}
+            isbn: {type: [string, 'null'], description: Sin guiones ni espacios.}
+            estadoConservacion:
+              type: [string, 'null']
+              enum: [nuevo, muy_bueno, bueno, gastado, null]
+            descripcion: {type: [string, 'null']}
+            disponible:
+              type: integer
+              description: total - reservada. Se calcula, nunca se guarda.
+        propietario:
+          type: object
+          required: [id, nombre, reputacion]
+          properties:
+            id: {type: string}
+            nombre: {type: string}
+            reputacion: {$ref: '#/components/schemas/Reputacion'}
+        esMia:
+          type: boolean
+          description: Si la publicacion es de quien consulta; false sin sesion.
+        creadaEn: {type: string, format: date-time}
+
+    PedidoPublicacion:
+      type: object
+      required: [libroId]
+      properties:
+        libroId:
+          type: [string, integer]
+          description: Un libro del catalogo propio. Se acepta `3` o `"3"`.
+          example: '3'
+        nota:
+          type: [string, 'null']
+          maxLength: 300
+          description: Opcional, recortada. Ausente, vacia o null queda en null.
+
+    PedidoNota:
+      type: object
+      description: Reemplazo de la nota, no parche. Sin `nota`, la borra.
+      properties:
+        nota:
+          type: [string, 'null']
+          maxLength: 300
+
+    EstadoSolicitud:
+      type: string
+      enum: [pendiente, aceptada, rechazada, cancelada, completada, flagueada]
+      description: |
+        `pendiente` -> `aceptada` -> `completada` es el camino feliz.
+        `flagueada` es una aceptada cuyo plazo vencio sin las dos
+        confirmaciones (RF-23); avisa, no congela.
+
+    ParteSolicitud:
+      type: object
+      required: [id, nombre]
+      properties:
+        id: {type: string}
+        nombre: {type: string}
+
+    Solicitud:
+      type: object
+      description: |
+        Une el libro de una publicacion (`libroSolicitado`) con un libro del
+        solicitante (`libroOfrecido`). Siempre se ve como una de sus partes;
+        `contraparte`, `confirmadaPorMi` y `miValoracion` dependen de quien mira.
+      required: [id, estado, soyPropietario, publicacionId, contraparte,
+                 libroSolicitado, libroOfrecido, venceEn, flagueadaEn,
+                 motivoFlagueo, confirmadaPorMi, confirmadaPorContraparte,
+                 miValoracion, puedo, creadaEn]
+      properties:
+        id: {type: string}
+        estado: {$ref: '#/components/schemas/EstadoSolicitud'}
+        soyPropietario:
+          type: boolean
+          description: Si quien mira es el dueño de la publicacion.
+        publicacionId: {type: string}
+        contraparte: {$ref: '#/components/schemas/ParteSolicitud'}
+        libroSolicitado: {$ref: '#/components/schemas/LibroDeSolicitud'}
+        libroOfrecido: {$ref: '#/components/schemas/LibroDeSolicitud'}
+        venceEn:
+          type: [string, 'null']
+          format: date-time
+          description: Plazo de confirmacion; se fija al aceptar (RF-22).
+        flagueadaEn:
+          type: [string, 'null']
+          format: date-time
+          description: Cuando vencio sin las dos confirmaciones (RF-23).
+        motivoFlagueo: {type: [string, 'null']}
+        confirmadaPorMi: {type: boolean}
+        confirmadaPorContraparte: {type: boolean}
+        miValoracion:
+          type: [integer, 'null']
+          description: El puntaje que quien mira ya dio, si valoro (RF-25).
+        puedo: {$ref: '#/components/schemas/PuedoSolicitud'}
+        creadaEn: {type: string, format: date-time}
+
+    LibroDeSolicitud:
+      type: object
+      required: [id, titulo, autor]
+      properties:
+        id: {type: string}
+        titulo: {type: string}
+        autor: {type: string}
+
+    PuedoSolicitud:
+      type: object
+      description: |
+        Lo que quien mira puede hacer con la solicitud, con las mismas reglas
+        que validan cada accion: la interfaz dibuja los botones con esto y no
+        las repite.
+      required: [aceptar, rechazar, cancelar, confirmar, reportar, valorar]
+      properties:
+        aceptar: {type: boolean}
+        rechazar: {type: boolean}
+        cancelar: {type: boolean}
+        confirmar: {type: boolean}
+        reportar: {type: boolean}
+        valorar: {type: boolean}
+
+    PedidoSolicitud:
+      type: object
+      required: [publicacionId, libroOfrecidoId]
+      properties:
+        publicacionId:
+          type: [string, integer]
+          description: La publicacion ajena que se solicita. Se acepta `7` o `"7"`.
+        libroOfrecidoId:
+          type: [string, integer]
+          description: Un libro del catalogo propio que se ofrece a cambio.
+
+    Reporte:
+      type: object
+      required: [id, autor, descripcion, creadoEn]
+      properties:
+        id: {type: string}
+        autor: {$ref: '#/components/schemas/ParteSolicitud'}
+        descripcion: {type: string, maxLength: 1000}
+        creadoEn: {type: string, format: date-time}
+
+    PedidoReporte:
+      type: object
+      required: [descripcion]
+      properties:
+        descripcion:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Que paso con el intercambio. Recortada.
+
+    Valoracion:
+      type: object
+      required: [id, puntaje, comentario, creadaEn]
+      properties:
+        id: {type: string}
+        puntaje: {type: integer, minimum: 1, maximum: 5}
+        comentario: {type: [string, 'null'], maxLength: 500}
+        creadaEn: {type: string, format: date-time}
+
+    PedidoValoracion:
+      type: object
+      required: [puntaje]
+      properties:
+        puntaje:
+          type: [integer, string]
+          description: Entero de 1 a 5. Se acepta `5` o `"5"`.
+        comentario:
+          type: [string, 'null']
+          maxLength: 500
+          description: Opcional, recortado; vacio queda en null.
+
+    ValoracionRecibida:
+      description: |
+        Una valoracion del perfil publico (RF-27), con quien la escribio y el
+        intercambio que la habilito.
+      allOf:
+        - $ref: '#/components/schemas/Valoracion'
+        - type: object
+          required: [autor, intercambio]
+          properties:
+            autor: {$ref: '#/components/schemas/ParteSolicitud'}
+            intercambio:
+              type: object
+              required: [id, libroSolicitado, libroOfrecido]
+              properties:
+                id: {type: string}
+                libroSolicitado:
+                  type: object
+                  required: [titulo]
+                  properties:
+                    titulo: {type: string}
+                libroOfrecido:
+                  type: object
+                  required: [titulo]
+                  properties:
+                    titulo: {type: string}
+
+    Flagueado:
+      type: object
+      description: |
+        Un intercambio que alguna vez vencio sin las dos confirmaciones, con
+        sus reportes, para el panel del administrador (RF-23, RF-24).
+      required: [id, estado, flagueadaEn, motivo, venceEn, propietario,
+                 solicitante, libroSolicitado, libroOfrecido, reportes]
+      properties:
+        id: {type: string}
+        estado: {$ref: '#/components/schemas/EstadoSolicitud'}
+        flagueadaEn: {type: [string, 'null'], format: date-time}
+        motivo: {type: [string, 'null']}
+        venceEn: {type: [string, 'null'], format: date-time}
+        propietario: {$ref: '#/components/schemas/ParteSolicitud'}
+        solicitante: {$ref: '#/components/schemas/ParteSolicitud'}
+        libroSolicitado:
+          type: object
+          required: [titulo, autor]
+          properties:
+            titulo: {type: string}
+            autor: {type: string}
+        libroOfrecido:
+          type: object
+          required: [titulo, autor]
+          properties:
+            titulo: {type: string}
+            autor: {type: string}
+        reportes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reporte'
 
     CuentaAdmin:
       type: object
@@ -856,6 +1759,7 @@ components:
                 - CONTRASENA_INCORRECTA
                 - NO_ENCONTRADO
                 - ESTADO_INVALIDO
+                - ARCHIVO_DEMASIADO_GRANDE
                 - RUTA_NO_ENCONTRADA
                 - NO_IMPLEMENTADO
                 - ERROR_INTERNO
@@ -1044,3 +1948,39 @@ components:
             properties:
               cuenta:
                 $ref: '#/components/schemas/CuentaAdmin'
+
+    PublicacionDevuelta:
+      description: La publicacion, con sus datos al dia.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [publicacion]
+            properties:
+              publicacion:
+                $ref: '#/components/schemas/Publicacion'
+
+    SolicitudDevuelta:
+      description: |
+        La solicitud como queda, con `puedo` al dia para que la interfaz
+        redibuje los botones.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [solicitud]
+            properties:
+              solicitud:
+                $ref: '#/components/schemas/Solicitud'
+
+    ArchivoDemasiadoGrande:
+      description: El cuerpo supera el tamaño permitido (la foto pasa de 2 MB).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              codigo: ARCHIVO_DEMASIADO_GRANDE
+              mensaje: La foto supera el máximo de 2 MB
+              detalles: []
