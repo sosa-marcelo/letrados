@@ -9,8 +9,8 @@ Producción: https://letrados-dusky.vercel.app
 | 1 (v0.1.0) | Módulo 1 · Autenticación: registro, inicio y cierre de sesión, recuperación de contraseña | RF-01 a RF-04 |
 | 2 (v0.2.0) | Módulo 2 · Usuarios y roles: sesiones revocables, perfil propio y público, administración de cuentas, baja | RF-05 a RF-09 |
 | 2 (v0.2.0) | Módulo 3 · Catálogo de libros: alta, modificación, retiro y consulta | RF-10 a RF-13 |
-| 3 (v1.0.0) | Módulo 4 · Publicaciones e intercambios: publicar con foto, explorar, solicitar, aceptar o rechazar, cancelar y confirmar | RF-14 a RF-21 |
-| 3 (v1.0.0) | Módulo 5 · Plazo, reportes y valoraciones: vencimiento y flagueo, reportes, panel del administrador, valoraciones y reputación | RF-22 a RF-27 |
+| 3 (v1.0.0) | Módulo 4 · Publicaciones e intercambios: publicar con foto, explorar, solicitar, aceptar o rechazar, cancelar, confirmar, plazo con flagueo y reportes | RF-14 a RF-24 |
+| 3 (v1.0.0) | Módulo 5 · Valoraciones: valorar a la contraparte, reputación y valoraciones recibidas | RF-25 a RF-27 |
 
 ## Tecnologías
 
