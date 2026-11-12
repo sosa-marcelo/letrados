@@ -45,6 +45,8 @@ tags:
     description: Publicar, explorar y retirar publicaciones, con su foto (RF-14 a RF-16)
   - name: Solicitudes
     description: Solicitudes e intercambios, reportes y valoraciones (RF-17 a RF-21, RF-24, RF-25)
+  - name: Valoraciones
+    description: Valoraciones recibidas, para el perfil publico (RF-27)
   - name: Administracion
     description: Cuentas y bloqueo (RF-06, RF-07) e intercambios flagueados (RF-23, RF-24). Requiere rol administrador.
 
@@ -425,7 +427,7 @@ paths:
 
   /usuarios/{id}/valoraciones:
     get:
-      tags: [Perfil]
+      tags: [Valoraciones]
       operationId: listarValoracionesRecibidas
       summary: Valoraciones recibidas por un usuario (RF-27)
       description: |
@@ -1225,7 +1227,7 @@ paths:
                   datos:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IntercambioFlagueado'
+                      $ref: '#/components/schemas/Flagueado'
                   paginacion:
                     $ref: '#/components/schemas/Paginacion'
         '401':
@@ -1311,13 +1313,16 @@ components:
         reputacion: {$ref: '#/components/schemas/Reputacion'}
         publicaciones:
           type: array
-          description: Publicaciones activas (llegan con el modulo 4; hoy vacia).
-          items: {type: object}
+          description: Las publicaciones activas del usuario, con la misma forma que Explorar (RF-15).
+          items:
+            $ref: '#/components/schemas/Publicacion'
       additionalProperties: false
 
     Libro:
       type: object
-      required: [id, titulo, autor, total, reservada, disponible, publicado, tieneHistorial, creadoEn]
+      required: [id, titulo, autor, total, reservada, disponible, editorial, anio,
+                 edicion, isbn, estadoConservacion, descripcion, publicado,
+                 publicacionId, tieneHistorial, creadoEn]
       properties:
         id: {type: string, example: '3'}
         titulo: {type: string, example: Rayuela}
@@ -1328,7 +1333,22 @@ components:
           type: integer
           description: total - reservada. Se calcula, nunca se guarda.
           example: 1
+        editorial: {type: [string, 'null'], maxLength: 120}
+        anio:
+          type: [integer, 'null']
+          description: Año de publicacion, entre 1450 y el año actual.
+        edicion: {type: [string, 'null'], maxLength: 60}
+        isbn:
+          type: [string, 'null']
+          description: ISBN-10 o ISBN-13, sin guiones ni espacios.
+        estadoConservacion:
+          type: [string, 'null']
+          enum: [nuevo, muy_bueno, bueno, gastado, null]
+        descripcion: {type: [string, 'null'], maxLength: 500}
         publicado: {type: boolean}
+        publicacionId:
+          type: [string, 'null']
+          description: La publicacion vigente del libro, para «Ver publicacion».
         tieneHistorial:
           type: boolean
           description: Si participo en intercambios completados (al retirarlo se archiva).
@@ -1336,6 +1356,10 @@ components:
 
     PedidoLibro:
       type: object
+      description: |
+        Alta y modificacion. La modificacion es reemplazo, no parche: un dato
+        opcional que no viene queda en null. Los opcionales aceptan null o
+        vacio (queda null) y se recortan.
       required: [titulo, autor, cantidad]
       properties:
         titulo: {type: string, minLength: 1, maxLength: 200}
@@ -1344,6 +1368,21 @@ components:
           type: integer
           minimum: 1
           description: Entero >= 1. Tambien se acepta como texto ("3").
+        editorial: {type: [string, 'null'], maxLength: 120}
+        anio:
+          type: [integer, 'null']
+          minimum: 1450
+          description: Entre 1450 y el año actual. Tambien se acepta como texto ("1963").
+        edicion: {type: [string, 'null'], maxLength: 60}
+        isbn:
+          type: [string, 'null']
+          description: |
+            10 caracteres (el ultimo puede ser X) o 13 digitos. Se quitan
+            guiones y espacios antes de validar.
+        estadoConservacion:
+          type: [string, 'null']
+          enum: [nuevo, muy_bueno, bueno, gastado, null]
+        descripcion: {type: [string, 'null'], maxLength: 500}
 
     Publicacion:
       type: object
@@ -1567,7 +1606,7 @@ components:
                   properties:
                     titulo: {type: string}
 
-    IntercambioFlagueado:
+    Flagueado:
       type: object
       description: |
         Un intercambio que alguna vez vencio sin las dos confirmaciones, con
