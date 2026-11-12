@@ -201,6 +201,7 @@ async function principal() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   principal().catch((error) => {
     console.error(error.message);
+    for (const { campo, mensaje } of error.detalles ?? []) console.error(`- ${campo}: ${mensaje}`);
     process.exit(1);
   });
 }
