@@ -88,6 +88,19 @@ describe('POST /api/libros (RF-10)', () => {
     },
   );
 
+  it.each([
+    ['anio', 1300],
+    ['anio', 'dos mil'],
+    ['isbn', '97895007031345'],
+    ['estadoConservacion', 'roto'],
+  ])('%s %j -> 400 con detalle en su campo (LET-119)', async (campo, valor) => {
+    const yo = conToken(await cuenta());
+    const r = await yo.post('/api/libros', { ...RAYUELA, [campo]: valor });
+    expect(r.status).toBe(400);
+    expect(r.body.error.codigo).toBe('DATOS_INVALIDOS');
+    expect(r.body.error.detalles.map((d) => d.campo)).toEqual([campo]);
+  });
+
   it('sin titulo ni autor -> 400 con un detalle por campo', async () => {
     const yo = conToken(await cuenta());
     const r = await yo.post('/api/libros', { titulo: '  ', cantidad: 1 });
@@ -182,5 +195,74 @@ describe('DELETE /api/libros/:id (RF-12)', () => {
   it('id mal formado -> 404', async () => {
     const yo = conToken(await cuenta());
     expect((await yo.del('/api/libros/0')).status).toBe(404);
+  });
+});
+
+describe('datos opcionales del libro de punta a punta (LET-121, RF-10, RF-11 v1.1)', () => {
+  const COMPLETO = {
+    ...RAYUELA,
+    editorial: ' Sudamericana ',
+    anio: '1963',
+    edicion: '1.a edición',
+    isbn: '978-950-07-0313-4',
+    estadoConservacion: 'muy_bueno',
+    descripcion: 'Tapa dura, sin marcas',
+  };
+  const GUARDADO = {
+    editorial: 'Sudamericana',
+    anio: 1963,
+    edicion: '1.a edición',
+    isbn: '9789500703134',
+    estadoConservacion: 'muy_bueno',
+    descripcion: 'Tapa dura, sin marcas',
+  };
+
+  it('POST los guarda normalizados y GET los devuelve', async () => {
+    const yo = conToken(await cuenta());
+    const alta = await yo.post('/api/libros', COMPLETO);
+    expect(alta.status).toBe(201);
+    expect(alta.body.libro).toMatchObject(GUARDADO);
+
+    const lista = await yo.get('/api/libros');
+    expect(lista.body.datos[0]).toMatchObject(GUARDADO);
+  });
+
+  it('POST sin opcionales: los seis vienen en null', async () => {
+    const yo = conToken(await cuenta());
+    const r = await yo.post('/api/libros', RAYUELA);
+    expect(r.body.libro).toMatchObject({
+      editorial: null,
+      anio: null,
+      edicion: null,
+      isbn: null,
+      estadoConservacion: null,
+      descripcion: null,
+    });
+  });
+
+  it('PUT es reemplazo: sin editorial la deja en null y conserva lo que se manda', async () => {
+    const yo = conToken(await cuenta());
+    const { id } = (await yo.post('/api/libros', COMPLETO)).body.libro;
+    const { editorial, ...sinEditorial } = COMPLETO;
+    const r = await yo.put(`/api/libros/${id}`, sinEditorial);
+    expect(r.status).toBe(200);
+    expect(r.body.libro).toMatchObject({ ...GUARDADO, editorial: null });
+  });
+
+  it('PUT con un dato opcional invalido -> 400 y el libro no cambia', async () => {
+    const yo = conToken(await cuenta());
+    const { id } = (await yo.post('/api/libros', COMPLETO)).body.libro;
+    const r = await yo.put(`/api/libros/${id}`, { ...COMPLETO, estadoConservacion: 'roto' });
+    expect(r.status).toBe(400);
+    expect(r.body.error.detalles.map((d) => d.campo)).toEqual(['estadoConservacion']);
+    const [libro] = (await yo.get('/api/libros')).body.datos;
+    expect(libro).toMatchObject(GUARDADO);
+  });
+
+  it('los datos de un libro no se filtran al catalogo de otra persona', async () => {
+    const ana = conToken(await cuenta('ana@ejemplo.com'));
+    const beto = conToken(await cuenta('beto@ejemplo.com'));
+    await ana.post('/api/libros', COMPLETO);
+    expect((await beto.get('/api/libros')).body.datos).toEqual([]);
   });
 });

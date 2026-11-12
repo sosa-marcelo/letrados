@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import Aviso from '../componentes/Aviso.jsx'
 import Boton from '../componentes/Boton.jsx'
@@ -13,8 +14,17 @@ import Pastilla from '../componentes/Pastilla.jsx'
 import Vacio from '../componentes/Vacio.jsx'
 import { VERDE } from '../estilos/pleno.js'
 import { useCarga } from '../ganchos/useCarga.js'
-import { actualizar, conConsulta, eliminar, enviar, ErrorApi, obtener } from '../servicios/cliente.js'
+import {
+  actualizar,
+  conConsulta,
+  eliminar,
+  enviar,
+  ErrorApi,
+  obtener,
+  subirArchivo,
+} from '../servicios/cliente.js'
 import { mapearDetalles, mensajeDeError } from '../servicios/errores.js'
+import { ESTADOS_CONSERVACION, lineaDeDatos } from '../servicios/libro.js'
 import './MisLibros.css'
 
 /*
@@ -28,8 +38,10 @@ import './MisLibros.css'
  * «Reintentar»; vacío («Tu catálogo está vacío» o «Ningún libro coincide…»
  * si hay búsqueda); y la grilla.
  *
- * «Publicar» es del módulo 4 (ciclo 3): se dibuja deshabilitado, con la
- * pista «Sin ejemplares disponibles» si no hay disponibles.
+ * «Publicar» (LET-134, RF-14, CU-16) abre un diálogo con nota y foto
+ * opcionales y lleva al detalle de la publicación nueva. Sin ejemplares
+ * disponibles se dibuja deshabilitado con la pista; si el libro ya está
+ * publicado, la ficha ofrece «Ver publicación».
  */
 const PLENO = VERDE
 const POR_PAGINA = 12
@@ -40,6 +52,7 @@ export default function MisLibros() {
   const [aviso, setAviso] = useState(null) // éxito de la última operación
   const [formulario, setFormulario] = useState(null) // { libro? } abierto
   const [retiro, setRetiro] = useState(null) // libro a retirar
+  const [publicando, setPublicando] = useState(null) // libro a publicar
 
   const carga = useCarga(
     () => obtener(conConsulta('/libros', { q, pagina, porPagina: POR_PAGINA })),
@@ -163,6 +176,10 @@ export default function MisLibros() {
                   setAviso(null)
                   setRetiro(libro)
                 }}
+                alPublicar={() => {
+                  setAviso(null)
+                  setPublicando(libro)
+                }}
               />
             ))}
           </div>
@@ -189,14 +206,19 @@ export default function MisLibros() {
       {retiro && (
         <DialogoRetiro libro={retiro} alCerrar={() => setRetiro(null)} alRetirar={alRetirar} />
       )}
+
+      {publicando && (
+        <DialogoPublicar libro={publicando} alCerrar={() => setPublicando(null)} />
+      )}
     </Marco>
   )
 }
 
 /** Una ficha del catálogo con los tres números. */
-function FichaLibro({ libro, alEditar, alRetirar }) {
+function FichaLibro({ libro, alEditar, alRetirar, alPublicar }) {
+  const navigate = useNavigate()
   const sinDisponibles = libro.disponible <= 0
-  const pistaPublicar = sinDisponibles ? 'Sin ejemplares disponibles' : 'Disponible en el próximo ciclo'
+  const datos = lineaDeDatos(libro) // LET-123
 
   return (
     <Ficha
@@ -217,14 +239,29 @@ function FichaLibro({ libro, alEditar, alRetirar }) {
             </button>
           </span>
           <span className="libro__publicar">
-            {sinDisponibles && <span className="libro__pista">{pistaPublicar}</span>}
-            <Boton tamano="chico" disabled title={pistaPublicar}>
-              {libro.publicado ? 'Ver publicación' : 'Publicar'}
-            </Boton>
+            {libro.publicado ? (
+              <Boton tamano="chico" onClick={() => navigate(`/publicaciones/${libro.publicacionId}`)}>
+                Ver publicación
+              </Boton>
+            ) : (
+              <>
+                {sinDisponibles && <span className="libro__pista">Sin ejemplares disponibles</span>}
+                <Boton
+                  tamano="chico"
+                  variante={sinDisponibles ? undefined : 'naranja'}
+                  disabled={sinDisponibles}
+                  title={sinDisponibles ? 'Sin ejemplares disponibles' : undefined}
+                  onClick={alPublicar}
+                >
+                  Publicar
+                </Boton>
+              </>
+            )}
           </span>
         </>
       }
     >
+      {datos && <p className="libro__datos">{datos}</p>}
       <div className="libro__numeros">
         <span className={`libro__disponible ${sinDisponibles ? 'libro__disponible--cero' : ''}`.trim()}>
           {libro.disponible}
@@ -242,21 +279,44 @@ function FichaLibro({ libro, alEditar, alRetirar }) {
   )
 }
 
+/** Los seis datos opcionales del libro, en el orden del formulario. */
+const OPCIONALES = ['editorial', 'anio', 'edicion', 'isbn', 'estadoConservacion', 'descripcion']
+const LARGO_DESCRIPCION = 500
+
+/** Valor de un dato opcional para un input controlado: null -> ''. */
+function textoDe(valor) {
+  return valor === null || valor === undefined ? '' : String(valor)
+}
+
 /*
- * Alta y edición en el mismo formulario (tres campos). En edición, si hay
- * reservas, la cantidad no puede bajar de `reservada`: la pista lo dice y el
- * botón se deshabilita por debajo — el mismo límite que exige el servidor.
+ * Alta y edición en el mismo formulario. Arriba los tres obligatorios; abajo,
+ * plegada, «Más datos (opcional)» con los seis de LET-112. Al editar, la
+ * sección se abre sola si el libro tiene alguno cargado, y también se abre si
+ * el servidor marca un error en uno de ellos.
+ *
+ * En edición, si hay reservas, la cantidad no puede bajar de `reservada`: la
+ * pista lo dice y el botón se deshabilita por debajo — el mismo límite que
+ * exige el servidor.
  */
 function DialogoLibro({ libro, alCerrar, alGuardar }) {
   const esAlta = !libro
   const minimo = esAlta ? 1 : Math.max(1, libro.reservada)
+  const anioActual = new Date().getFullYear()
 
   const [titulo, setTitulo] = useState(libro?.titulo ?? '')
   const [autor, setAutor] = useState(libro?.autor ?? '')
   const [cantidad, setCantidad] = useState(String(libro?.total ?? 1))
+  const [opcionales, setOpcionales] = useState(() =>
+    Object.fromEntries(OPCIONALES.map((campo) => [campo, textoDe(libro?.[campo])])),
+  )
+  const [masAbierto, setMasAbierto] = useState(
+    () => !esAlta && OPCIONALES.some((campo) => textoDe(libro[campo]) !== ''),
+  )
   const [enviando, setEnviando] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState(null)
   const [erroresCampo, setErroresCampo] = useState({})
+
+  const cambiar = (campo) => (e) => setOpcionales((o) => ({ ...o, [campo]: e.target.value }))
 
   const numero = Number(cantidad)
   const bajoReservas = !esAlta && libro.reservada > 0 && cantidad !== '' && numero < libro.reservada
@@ -271,7 +331,8 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
     setEnviando(true)
     setErrorGeneral(null)
     setErroresCampo({})
-    const cuerpo = { titulo, autor, cantidad: cantidad === '' ? cantidad : numero }
+    // Los opcionales viajan como texto: el servidor recorta y deja en null los vacíos.
+    const cuerpo = { titulo, autor, cantidad: cantidad === '' ? cantidad : numero, ...opcionales }
     try {
       const { libro: guardado } = esAlta
         ? await enviar('/libros', cuerpo)
@@ -280,7 +341,9 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
     } catch (error) {
       setEnviando(false)
       if (error instanceof ErrorApi && error.codigo === 'DATOS_INVALIDOS' && error.detalles.length) {
-        setErroresCampo(mapearDetalles(error.detalles))
+        const errores = mapearDetalles(error.detalles)
+        setErroresCampo(errores)
+        if (OPCIONALES.some((campo) => errores[campo])) setMasAbierto(true)
       } else {
         setErrorGeneral(mensajeDeError(error))
       }
@@ -351,6 +414,94 @@ function DialogoLibro({ libro, alCerrar, alGuardar }) {
           required
         />
       </div>
+
+      <details
+        className="libro__mas"
+        open={masAbierto}
+        onToggle={(e) => setMasAbierto(e.currentTarget.open)}
+      >
+        <summary className="libro__mas-titulo">Más datos (opcional)</summary>
+        <Campo
+          id="libro-editorial"
+          etiqueta="Editorial"
+          valor={opcionales.editorial}
+          alCambiar={cambiar('editorial')}
+          error={erroresCampo.editorial}
+          pleno={PLENO}
+          disabled={enviando}
+          maxLength={120}
+        />
+        <div className="libro__mas-grilla">
+          <Campo
+            id="libro-anio"
+            etiqueta="Año de publicación"
+            tipo="number"
+            inputMode="numeric"
+            min={1450}
+            max={anioActual}
+            step={1}
+            valor={opcionales.anio}
+            alCambiar={cambiar('anio')}
+            error={erroresCampo.anio}
+            pleno={PLENO}
+            disabled={enviando}
+          />
+          <Campo
+            id="libro-edicion"
+            etiqueta="Edición"
+            placeholder="3.ª edición, bolsillo…"
+            valor={opcionales.edicion}
+            alCambiar={cambiar('edicion')}
+            error={erroresCampo.edicion}
+            pleno={PLENO}
+            disabled={enviando}
+            maxLength={60}
+          />
+          <Campo
+            id="libro-isbn"
+            etiqueta="ISBN"
+            inputMode="numeric"
+            placeholder="978-950-07-0313-4"
+            valor={opcionales.isbn}
+            alCambiar={cambiar('isbn')}
+            error={erroresCampo.isbn}
+            pleno={PLENO}
+            disabled={enviando}
+            maxLength={20}
+          />
+          <Campo
+            id="libro-estado"
+            etiqueta="Estado de conservación"
+            elemento="select"
+            valor={opcionales.estadoConservacion}
+            alCambiar={cambiar('estadoConservacion')}
+            error={erroresCampo.estadoConservacion}
+            pleno={PLENO}
+            disabled={enviando}
+          >
+            <option value="">Sin indicar</option>
+            {ESTADOS_CONSERVACION.map(([valor, texto]) => (
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
+            ))}
+          </Campo>
+        </div>
+        <Campo
+          id="libro-descripcion"
+          etiqueta="Descripción"
+          elemento="textarea"
+          placeholder="Estado de las tapas, anotaciones, lo que quieras contar del ejemplar."
+          valor={opcionales.descripcion}
+          alCambiar={cambiar('descripcion')}
+          error={erroresCampo.descripcion}
+          pista={`${opcionales.descripcion.length}/${LARGO_DESCRIPCION}`}
+          pleno={PLENO}
+          disabled={enviando}
+          maxLength={LARGO_DESCRIPCION}
+          rows={4}
+        />
+      </details>
     </Dialogo>
   )
 }
@@ -410,6 +561,127 @@ function DialogoRetiro({ libro, alCerrar, alRetirar }) {
           Se va a eliminar <b>{libro.titulo}</b> de tu catálogo.
         </p>
       )}
+    </Dialogo>
+  )
+}
+
+const BYTES_MAX_FOTO = 2 * 1024 * 1024
+const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp']
+const LARGO_NOTA = 300
+
+/*
+ * Publicar un libro del catálogo (LET-134, RF-14, CU-16): nota y foto
+ * opcionales. Crea la publicación y, si hay foto, la sube después; al
+ * terminar lleva al detalle. Si la foto falla, la publicación igual queda
+ * creada y el detalle lo avisa: la foto se puede agregar desde ahí.
+ */
+function DialogoPublicar({ libro, alCerrar }) {
+  const navigate = useNavigate()
+  const [nota, setNota] = useState('')
+  const [foto, setFoto] = useState(null)
+  const [vistaPrevia, setVistaPrevia] = useState(null)
+  const [errorFoto, setErrorFoto] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => () => vistaPrevia && URL.revokeObjectURL(vistaPrevia), [vistaPrevia])
+
+  function alElegirFoto(evento) {
+    const archivo = evento.target.files?.[0]
+    setErrorFoto(null)
+    if (!archivo) return
+    if (!TIPOS_FOTO.includes(archivo.type)) {
+      setErrorFoto('La foto tiene que ser una imagen JPEG, PNG o WebP.')
+      evento.target.value = ''
+      return
+    }
+    if (archivo.size > BYTES_MAX_FOTO) {
+      setErrorFoto('La foto supera el máximo de 2 MB. Probá con una más liviana.')
+      evento.target.value = ''
+      return
+    }
+    setFoto(archivo)
+    setVistaPrevia(URL.createObjectURL(archivo))
+  }
+
+  async function alEnviar(evento) {
+    evento.preventDefault()
+    setEnviando(true)
+    setError(null)
+    let publicacion
+    try {
+      ;({ publicacion } = await enviar('/publicaciones', { libroId: libro.id, nota }))
+    } catch (e) {
+      setEnviando(false)
+      setError(mensajeDeError(e))
+      return
+    }
+    let aviso = `Publicaste «${libro.titulo}». Ya aparece en Explorar.`
+    if (foto) {
+      try {
+        await subirArchivo(`/publicaciones/${publicacion.id}/foto`, foto)
+      } catch (e) {
+        aviso = `Publicaste «${libro.titulo}», pero no pudimos subir la foto: ${mensajeDeError(e)} Podés agregarla desde acá.`
+      }
+    }
+    navigate(`/publicaciones/${publicacion.id}`, { state: { aviso } })
+  }
+
+  return (
+    <Dialogo
+      abierto
+      titulo="Publicar un libro"
+      alCerrar={alCerrar}
+      ocupado={enviando}
+      alEnviar={alEnviar}
+      acciones={
+        <>
+          <Boton onClick={alCerrar} disabled={enviando}>
+            Descartar
+          </Boton>
+          <Boton tipo="submit" variante="naranja" cargando={enviando} textoCargando="Publicando…">
+            Publicar
+          </Boton>
+        </>
+      }
+    >
+      {error && <Aviso tipo="error">{error}</Aviso>}
+      <p className="dialogo__texto">
+        Vas a ofrecer un ejemplar de <b>{libro.titulo}</b> en Explorar.
+      </p>
+      <Campo
+        id="publicar-nota"
+        etiqueta="Nota (opcional)"
+        elemento="textarea"
+        placeholder="Dónde lo entregás, en qué horarios, lo que quieras aclarar."
+        valor={nota}
+        alCambiar={(e) => setNota(e.target.value)}
+        pista={`${nota.length}/${LARGO_NOTA}`}
+        pleno={PLENO}
+        disabled={enviando}
+        maxLength={LARGO_NOTA}
+        rows={3}
+      />
+      <div className="libro__foto">
+        <span className="campo__etiqueta">Foto (opcional)</span>
+        {vistaPrevia && <img src={vistaPrevia} alt="" className="libro__foto-previa" />}
+        <label className="libro__enlace libro__elegir-foto">
+          {foto ? 'Elegir otra foto' : 'Elegir una foto'}
+          <input
+            type="file"
+            accept={TIPOS_FOTO.join(',')}
+            onChange={alElegirFoto}
+            disabled={enviando}
+            className="libro__archivo"
+          />
+        </label>
+        <p className="campo__pista">JPEG, PNG o WebP, hasta 2 MB.</p>
+        {errorFoto && (
+          <p className="campo__error" role="alert">
+            {errorFoto}
+          </p>
+        )}
+      </div>
     </Dialogo>
   )
 }

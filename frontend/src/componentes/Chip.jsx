@@ -14,6 +14,8 @@ import './Chip.css'
  *   rechazada / cancelada   gris
  *   flagueada               rojo
  *   administrador           naranja («Admin»)
+ *   reservada               naranja  (publicación con una solicitud aceptada)
+ *   cerrada / retirada      gris     (publicación que ya no se ofrece)
  *
  * props:
  *   estado      una de las claves de arriba
@@ -30,6 +32,9 @@ const ESTADOS = {
   cancelada: { texto: 'Cancelada', color: 'gris' },
   flagueada: { texto: 'Flagueada', color: 'rojo' },
   administrador: { texto: 'Admin', color: 'naranja' },
+  reservada: { texto: 'Reservada', color: 'naranja' },
+  cerrada: { texto: 'Cerrada', color: 'gris' },
+  retirada: { texto: 'Retirada', color: 'gris' },
 }
 
 export default function Chip({ estado, children }) {

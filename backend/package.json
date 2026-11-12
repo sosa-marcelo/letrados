@@ -10,6 +10,7 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "migrar": "node --env-file-if-exists=../.env --env-file-if-exists=.env migraciones/correr.js",
+    "sembrar:demo": "node --env-file-if-exists=../.env --env-file-if-exists=.env scripts/sembrar-demo.js",
     "docs": "jsdoc -c jsdoc.json && npm run docs:api",
     "docs:api": "npx --yes @redocly/cli@2 build-docs docs/openapi.yaml -o ../frontend/public/documentacion/api.html --title \"Letrados API\""
   },

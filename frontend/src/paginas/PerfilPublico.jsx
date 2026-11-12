@@ -1,15 +1,18 @@
-import { useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 
 import Boton from '../componentes/Boton.jsx'
 import { Cargando, ErrorCarga, EsqueletoPapel } from '../componentes/Estados.jsx'
-import Ficha from '../componentes/Ficha.jsx'
+import { IconoEstrella } from '../componentes/Iconos.jsx'
 import Marco from '../componentes/Marco.jsx'
+import Paginador from '../componentes/Paginador.jsx'
 import Reputacion from '../componentes/Reputacion.jsx'
+import TarjetaPublicacion from '../componentes/TarjetaPublicacion.jsx'
 import Vacio from '../componentes/Vacio.jsx'
 import { useSesion } from '../contexto/Sesion.jsx'
 import { NARANJA } from '../estilos/pleno.js'
 import { useCarga } from '../ganchos/useCarga.js'
-import { ErrorApi, obtener } from '../servicios/cliente.js'
+import { conConsulta, ErrorApi, obtener } from '../servicios/cliente.js'
 import { mensajeDeError } from '../servicios/errores.js'
 import './PerfilPublico.css'
 
@@ -19,7 +22,7 @@ import './PerfilPublico.css'
  * sesión (sin sesión, la barra ofrece «Entrar» y «Crear cuenta»).
  *
  *   Franja   inicial + nombre + Reputacion · cantidad de publicaciones
- *   Lienzo   publicaciones activas (Ficha) · valoraciones recibidas
+ *   Lienzo   publicaciones activas (TarjetaPublicacion, LET-135) · valoraciones recibidas
  *
  * Nunca muestra correo, rol ni estado: la API no los manda.
  *
@@ -116,15 +119,15 @@ export default function PerfilPublico() {
                 Publicaciones activas
               </h2>
               {usuario.publicaciones?.length ? (
-                <div className="grilla-fichas">
+                <div className="grilla-fichas grilla-publicaciones">
                   {usuario.publicaciones.map((p) => (
-                    <Ficha key={p.id} titulo={p.titulo} subtitulo={p.autor} />
+                    <TarjetaPublicacion key={p.id} publicacion={p} conDuenio={false} />
                   ))}
                 </div>
               ) : (
                 <Vacio
                   como="h3"
-                  titulo="Sin publicaciones activas"
+                  titulo={usuario.eliminada ? 'Sin publicaciones activas' : 'Todavía no publicó libros'}
                   texto={
                     usuario.eliminada
                       ? 'Las cuentas eliminadas no publican.'
@@ -139,18 +142,86 @@ export default function PerfilPublico() {
                 <h2 id="publico-valoraciones" className="papel__titulo">
                   Valoraciones
                 </h2>
-                {/* Las valoraciones llegan con el módulo 5; hasta entonces la
-                    API no las manda y la reputación vale «Sin valoraciones». */}
-                <Vacio
-                  como="h3"
-                  titulo="Sin valoraciones"
-                  texto="Las valoraciones aparecen cuando completa intercambios."
-                />
+                <ValoracionesRecibidas usuarioId={usuario.id} />
               </section>
             )}
           </>
         )}
       </div>
     </Marco>
+  )
+}
+
+const POR_PAGINA_VALORACIONES = 5
+
+/*
+ * Valoraciones recibidas (LET-168, RF-27, CU-29): puntaje, comentario, quién
+ * la escribió y el intercambio que la habilitó, de la más nueva a la más
+ * vieja. Sin valoraciones queda el vacío de siempre.
+ */
+function ValoracionesRecibidas({ usuarioId }) {
+  const [pagina, setPagina] = useState(1)
+  const carga = useCarga(
+    () =>
+      obtener(
+        conConsulta(`/usuarios/${encodeURIComponent(usuarioId)}/valoraciones`, {
+          pagina,
+          porPagina: POR_PAGINA_VALORACIONES,
+        }),
+      ),
+    [usuarioId, pagina],
+  )
+
+  if (carga.error) {
+    return (
+      <ErrorCarga
+        mensaje={mensajeDeError(carga.error, 'No pudimos cargar las valoraciones.')}
+        alReintentar={carga.recargar}
+      />
+    )
+  }
+  if (!carga.datos) return <EsqueletoPapel lineas={2} />
+
+  const { datos, paginacion } = carga.datos
+  if (paginacion.total === 0) {
+    return (
+      <Vacio
+        como="h3"
+        titulo="Sin valoraciones"
+        texto="Las valoraciones aparecen cuando completa intercambios."
+      />
+    )
+  }
+
+  return (
+    <>
+      <ul className="valoraciones">
+        {datos.map((v) => (
+          <li key={v.id} className="valoracion">
+            <span className="valoracion__estrellas" aria-label={`${v.puntaje} de 5 estrellas`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <IconoEstrella key={n} tam={15} llena={n <= v.puntaje} />
+              ))}
+            </span>
+            {v.comentario && <p className="valoracion__comentario">«{v.comentario}»</p>}
+            <p className="valoracion__pie">
+              <Link to={`/usuarios/${v.autor.id}`} className="valoracion__autor">
+                {v.autor.nombre}
+              </Link>{' '}
+              · por «{v.intercambio.libroSolicitado.titulo}» ⇄ «{v.intercambio.libroOfrecido.titulo}» ·{' '}
+              {new Date(v.creadaEn).toLocaleDateString('es-PY')}
+            </p>
+          </li>
+        ))}
+      </ul>
+      {paginacion.total > paginacion.porPagina && (
+        <Paginador
+          pagina={paginacion.pagina}
+          porPagina={paginacion.porPagina}
+          total={paginacion.total}
+          alCambiar={setPagina}
+        />
+      )}
+    </>
   )
 }

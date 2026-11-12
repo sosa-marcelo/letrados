@@ -1,0 +1,153 @@
+/* /admin/flagueados (LET-160). */
+
+.flagueados__select {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radio-campo);
+  border: 2px solid var(--crema);
+  background: var(--tinta);
+  color: var(--crema);
+  font: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.flagueados__select:focus-visible {
+  outline: 3px solid var(--naranja);
+  outline-offset: 2px;
+}
+
+.flagueados__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.flagueado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.flagueado__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.flagueado__fecha {
+  font-size: 13px;
+  color: var(--gris);
+  font-variant-numeric: tabular-nums;
+}
+
+.flagueado__partes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.flagueado__etiqueta {
+  display: block;
+  font-size: var(--texto-etiqueta);
+  font-weight: var(--peso-etiqueta);
+  color: var(--gris);
+}
+
+.flagueado__persona {
+  display: inline-block;
+  font-family: var(--fuente-titulos);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--tinta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.flagueado__persona:focus-visible {
+  outline: 2px solid var(--naranja);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.flagueado__libro {
+  display: block;
+  font-size: 13px;
+  color: var(--gris);
+  overflow-wrap: anywhere;
+}
+
+.flagueado__flecha {
+  font-size: 22px;
+  color: var(--rojo);
+}
+
+.flagueado__motivo,
+.flagueado__sin-reportes {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+
+.flagueado__reportes {
+  border-top: 1px solid var(--linea);
+  padding-top: 10px;
+}
+
+.flagueado__reportes summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.flagueado__reportes summary:focus-visible {
+  outline: 2px solid var(--naranja);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.flagueado__reportes ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.flagueado__reporte {
+  padding: 10px 12px;
+  border-radius: var(--radio-campo);
+  background: var(--hundido);
+}
+
+.flagueado__reporte p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.flagueado__autor {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gris);
+}
+
+@media (max-width: 480px) {
+  .flagueado {
+    padding: 14px;
+  }
+
+  .flagueado__partes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .flagueado__flecha {
+    display: none;
+  }
+}

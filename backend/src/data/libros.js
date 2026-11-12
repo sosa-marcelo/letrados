@@ -8,8 +8,31 @@ import { consultar } from '../infra/bd.js';
  * @property {string} autor
  * @property {number} cantidad_total
  * @property {number} cantidad_reservada
+ * @property {string | null} editorial
+ * @property {number | null} anio_publicacion
+ * @property {string | null} edicion
+ * @property {string | null} isbn
+ * @property {string | null} estado_conservacion
+ * @property {string | null} descripcion
  * @property {Date | null} archivado_en
  * @property {Date} creado_en
+ */
+
+/**
+ * Lo que el usuario escribe de un libro (RF-10, RF-11 v1.1), en nombres de
+ * columna. Los seis datos opcionales (migracion 005) van en `null` si no se
+ * cargaron.
+ *
+ * @typedef {object} CamposLibro
+ * @property {string} titulo
+ * @property {string} autor
+ * @property {number} cantidad_total
+ * @property {string | null} [editorial]
+ * @property {number | null} [anio_publicacion]
+ * @property {string | null} [edicion]
+ * @property {string | null} [isbn]
+ * @property {string | null} [estado_conservacion]
+ * @property {string | null} [descripcion]
  */
 
 /**
@@ -17,24 +40,43 @@ import { consultar } from '../infra/bd.js';
  */
 
 const COLUMNAS =
-  'id, usuario_id, titulo, autor, cantidad_total, cantidad_reservada, archivado_en, creado_en';
+  'id, usuario_id, titulo, autor, cantidad_total, cantidad_reservada, ' +
+  'editorial, anio_publicacion, edicion, isbn, estado_conservacion, descripcion, ' +
+  'archivado_en, creado_en';
+
+/**
+ * Los seis datos opcionales en el orden de los parametros de INSERT y UPDATE.
+ *
+ * @param {CamposLibro} campos
+ * @returns {Array<string | number | null>}
+ */
+function datosOpcionales({
+  editorial = null,
+  anio_publicacion = null,
+  edicion = null,
+  isbn = null,
+  estado_conservacion = null,
+  descripcion = null,
+}) {
+  return [editorial, anio_publicacion, edicion, isbn, estado_conservacion, descripcion];
+}
 
 /**
  * Inserta un libro con `cantidad_reservada = 0` (el DEFAULT de la columna).
  *
- * @param {{ usuario_id: string | number, titulo: string, autor: string, cantidad_total: number }} datos
+ * @param {CamposLibro & { usuario_id: string | number }} datos
  * @param {Ejecutor} [ejecutar]
  * @returns {Promise<FilaLibro>}
  */
-export async function insertarLibro(
-  { usuario_id, titulo, autor, cantidad_total },
-  ejecutar = consultar,
-) {
+export async function insertarLibro(datos, ejecutar = consultar) {
+  const { usuario_id, titulo, autor, cantidad_total } = datos;
   const { rows } = await ejecutar(
-    `INSERT INTO libros (usuario_id, titulo, autor, cantidad_total)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO libros (usuario_id, titulo, autor, cantidad_total,
+                         editorial, anio_publicacion, edicion, isbn,
+                         estado_conservacion, descripcion)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING ${COLUMNAS}`,
-    [usuario_id, titulo, autor, cantidad_total],
+    [usuario_id, titulo, autor, cantidad_total, ...datosOpcionales(datos)],
   );
   return rows[0];
 }
@@ -66,21 +108,68 @@ export async function bloquearLibroPropio(id, usuario_id, ejecutar = consultar) 
 }
 
 /**
- * Reemplaza titulo, autor y cantidad total. Nunca toca `cantidad_reservada`:
- * el modulo 3 solo la lee.
+ * Lee un libro cualquiera (de quien sea, archivado o no) bloqueando la fila
+ * hasta el fin de la transaccion. Lo usan las solicitudes, que mueven
+ * ejemplares de dos dueños a la vez (LET-138).
  *
  * @param {string | number} id
- * @param {{ titulo: string, autor: string, cantidad_total: number }} datos
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<FilaLibro | null>}
+ */
+export async function bloquearLibro(id, ejecutar = consultar) {
+  const { rows } = await ejecutar(`SELECT ${COLUMNAS} FROM libros WHERE id = $1 FOR UPDATE`, [id]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Mueve los ejemplares de un libro cuando una solicitud cambia de estado
+ * (LET-138, RF-19 a RF-21). Es la unica escritura de `cantidad_reservada`:
+ *
+ * - `reservar`:  reservada + 1                 (al aceptar)
+ * - `liberar`:   reservada - 1                 (al cancelar una aceptada)
+ * - `descontar`: total - 1 y reservada - 1     (al completar)
+ *
+ * La restriccion `reservada_no_supera_total` y los CHECK >= 0 lo sostienen en
+ * la base: un movimiento imposible falla en vez de dejar numeros invalidos.
+ *
+ * @param {string | number} id
+ * @param {'reservar' | 'liberar' | 'descontar'} movimiento
  * @param {Ejecutor} [ejecutar]
  * @returns {Promise<FilaLibro>}
  */
-export async function actualizarLibro(id, { titulo, autor, cantidad_total }, ejecutar = consultar) {
+export async function moverEjemplar(id, movimiento, ejecutar = consultar) {
+  const cambios = {
+    reservar: 'cantidad_reservada = cantidad_reservada + 1',
+    liberar: 'cantidad_reservada = cantidad_reservada - 1',
+    descontar: 'cantidad_total = cantidad_total - 1, cantidad_reservada = cantidad_reservada - 1',
+  };
+  const { rows } = await ejecutar(
+    `UPDATE libros SET ${cambios[movimiento]} WHERE id = $1 RETURNING ${COLUMNAS}`,
+    [id],
+  );
+  return rows[0];
+}
+
+/**
+ * Reemplaza todo lo que escribe el usuario: titulo, autor, cantidad total y
+ * los seis datos opcionales (el que no viene queda en `null`). Nunca toca
+ * `cantidad_reservada`: el modulo 3 solo la lee.
+ *
+ * @param {string | number} id
+ * @param {CamposLibro} datos
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<FilaLibro>}
+ */
+export async function actualizarLibro(id, datos, ejecutar = consultar) {
+  const { titulo, autor, cantidad_total } = datos;
   const { rows } = await ejecutar(
     `UPDATE libros
-        SET titulo = $2, autor = $3, cantidad_total = $4
+        SET titulo = $2, autor = $3, cantidad_total = $4,
+            editorial = $5, anio_publicacion = $6, edicion = $7, isbn = $8,
+            estado_conservacion = $9, descripcion = $10
       WHERE id = $1
       RETURNING ${COLUMNAS}`,
-    [id, titulo, autor, cantidad_total],
+    [id, titulo, autor, cantidad_total, ...datosOpcionales(datos)],
   );
   return rows[0];
 }

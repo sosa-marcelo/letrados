@@ -11,6 +11,18 @@ import {
 } from '../data/usuarios.js';
 import { revocarSesionesDeUsuario } from '../data/sesiones.js';
 import { archivarLibrosDeUsuario } from '../data/libros.js';
+import { reputacionDe } from './reputacion.js';
+import { vistaPublicacion } from './publicaciones.js';
+import {
+  publicacionesActivasDeUsuario,
+  retirarPublicacionesDeUsuario,
+} from '../data/publicaciones.js';
+import {
+  solicitudesAbiertasDeUsuario,
+  bloquearSolicitud,
+  buscarSolicitud,
+} from '../data/solicitudes.js';
+import { cancelarBloqueada } from './solicitudes.js';
 
 /**
  * Perfil propio, perfil publico y baja de cuenta (modulo 2: RF-05, RF-08, RF-09).
@@ -19,21 +31,11 @@ import { archivarLibrosDeUsuario } from '../data/libros.js';
 /** Nombre que muestra una cuenta dada de baja (RF-09). */
 export const NOMBRE_CUENTA_ELIMINADA = 'Cuenta eliminada';
 
-/**
- * @typedef {{ promedio: number | null, cantidad: number }} Reputacion
- */
+/** @typedef {import('./reputacion.js').Reputacion} Reputacion */
 
-/**
- * Reputacion de un usuario (RF-26). Las valoraciones llegan con el modulo 5
- * (fuera del alcance del ciclo 2): hasta entonces nadie tiene valoraciones y
- * la pantalla muestra «Sin valoraciones».
- *
- * @param {string} _usuarioId
- * @returns {Promise<Reputacion>}
- */
-export async function reputacionDe(_usuarioId) {
-  return { promedio: null, cantidad: 0 };
-}
+// La reputacion vive en `reputacion.js` desde LET-128; se reexporta para no
+// romper a quien la importaba desde aca.
+export { reputacionDe };
 
 /**
  * Perfil propio (RF-05). Es el unico lugar donde el correo sale de la API, y
@@ -63,12 +65,13 @@ export async function verPerfil(usuarioId, { ejecutar } = {}) {
  * - Cuenta eliminada (RF-09): 200 con «Cuenta eliminada», reputacion en cero y
  *   sin publicaciones. Un 404 romperia los enlaces del historial de terceros.
  * - Cuenta bloqueada: se muestra igual; el bloqueo impide el acceso, no borra a
- *   la persona.
- * - Las publicaciones llegan con el modulo 4: hasta entonces la lista es vacia.
+ *   la persona. Sus publicaciones no aparecen: Explorar tampoco las muestra.
+ * - Publicaciones (LET-130): las mismas que Explorar mostraria de esta cuenta,
+ *   con la forma de Explorar. Se ve como la ve cualquiera: `esMia` va en false.
  *
  * @param {string} usuarioId
  * @param {{ ejecutar?: import('../data/usuarios.js').Ejecutor }} [opciones]
- * @returns {Promise<{ id: string, nombre: string, eliminada: boolean, reputacion: Reputacion, publicaciones: object[] }>}
+ * @returns {Promise<{ id: string, nombre: string, eliminada: boolean, reputacion: Reputacion, publicaciones: import('./publicaciones.js').Publicacion[] }>}
  */
 export async function perfilPublico(usuarioId, { ejecutar } = {}) {
   const fila = await buscarUsuarioPorId(usuarioId, ejecutar);
@@ -84,12 +87,14 @@ export async function perfilPublico(usuarioId, { ejecutar } = {}) {
     };
   }
 
+  const reputacion = await reputacionDe(String(fila.id), { ejecutar });
+  const publicaciones = await publicacionesActivasDeUsuario(fila.id, ejecutar);
   return {
     id: String(fila.id),
     nombre: fila.nombre,
     eliminada: false,
-    reputacion: await reputacionDe(String(fila.id)),
-    publicaciones: [],
+    reputacion,
+    publicaciones: publicaciones.map((p) => vistaPublicacion(p, { reputacion })),
   };
 }
 
@@ -99,9 +104,10 @@ export async function perfilPublico(usuarioId, { ejecutar } = {}) {
  * pero con reservas trabadas.
  *
  * ```
- * 1-3. Cancelar intercambios no completados, liberar reservas y reactivar
- *      publicaciones ajenas.            <- modulo 4, fuera del ciclo 2
- * 4.   Retirar publicaciones propias.   <- modulo 4, fuera del ciclo 2
+ * 1-3. Cancelar las solicitudes abiertas donde es parte (pendientes,
+ *      aceptadas y flagueadas), liberar sus reservas y reactivar las
+ *      publicaciones ajenas que habia reservado (LET-147).
+ * 4.   Retirar sus publicaciones vigentes (LET-147).
  * 5.   Archivar los libros propios (no se borran: el historial los nombra).
  * 6.   Anonimizar la fila de usuarios (nombre, correo .invalid, hash inutil).
  * 7.   Revocar todas sus sesiones.
@@ -124,6 +130,15 @@ export async function darDeBaja(usuarioId, { contrasena }, { ejecutar } = {}) {
     async (tx) => {
       const fila = await bloquearFilaUsuario(usuarioId, tx);
       if (!fila || fila.estado === 'eliminada') throw sesionInvalida();
+
+      // 1-3. Cada solicitud abierta se cancela con la misma regla de RF-20,
+      // bloqueada primero, como cualquier otra accion sobre una solicitud.
+      for (const abierta of await solicitudesAbiertasDeUsuario(usuarioId, tx)) {
+        await bloquearSolicitud(abierta.id, tx);
+        await cancelarBloqueada(await buscarSolicitud(abierta.id, tx), usuarioId, tx);
+      }
+      // 4.
+      await retirarPublicacionesDeUsuario(usuarioId, tx);
 
       await archivarLibrosDeUsuario(usuarioId, tx);
       await anonimizarUsuario(usuarioId, tx);

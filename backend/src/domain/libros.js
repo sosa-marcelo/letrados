@@ -10,6 +10,10 @@ import {
   tieneIntercambiosCompletados,
   listarLibrosDeUsuario,
 } from '../data/libros.js';
+import {
+  publicacionVigenteDeLibro,
+  publicacionesVigentesDeLibros,
+} from '../data/publicaciones.js';
 
 /**
  * Reglas del catalogo de libros (modulo 3, RF-10 a RF-13).
@@ -32,7 +36,14 @@ const POR_PAGINA_DEFECTO = 20;
  * @property {number} total
  * @property {number} reservada
  * @property {number} disponible
- * @property {boolean} publicado - si tiene una publicacion activa (modulo 4; hoy siempre false).
+ * @property {string | null} editorial
+ * @property {number | null} anio - año de publicacion.
+ * @property {string | null} edicion
+ * @property {string | null} isbn
+ * @property {string | null} estadoConservacion - nuevo, muy_bueno, bueno o gastado.
+ * @property {string | null} descripcion
+ * @property {boolean} publicado - si tiene una publicacion vigente, activa o reservada (LET-130).
+ * @property {string | null} publicacionId - la publicacion vigente, para «Ver publicacion».
  * @property {boolean} tieneHistorial - si participo en intercambios completados (decide el texto del retiro).
  * @property {string} creadoEn
  */
@@ -53,10 +64,10 @@ export function disponiblesDe(libro) {
  * Forma publica de una fila de `libros`.
  *
  * @param {import('../data/libros.js').FilaLibro} fila
- * @param {{ publicado?: boolean, tieneHistorial?: boolean }} [extra]
+ * @param {{ publicacionId?: string | null, tieneHistorial?: boolean }} [extra]
  * @returns {Libro}
  */
-export function vistaLibro(fila, { publicado = false, tieneHistorial = false } = {}) {
+export function vistaLibro(fila, { publicacionId = null, tieneHistorial = false } = {}) {
   return {
     id: String(fila.id),
     titulo: fila.titulo,
@@ -64,27 +75,78 @@ export function vistaLibro(fila, { publicado = false, tieneHistorial = false } =
     total: fila.cantidad_total,
     reservada: fila.cantidad_reservada,
     disponible: disponiblesDe(fila),
-    publicado,
+    editorial: fila.editorial ?? null,
+    anio: fila.anio_publicacion ?? null,
+    edicion: fila.edicion ?? null,
+    isbn: fila.isbn ?? null,
+    estadoConservacion: fila.estado_conservacion ?? null,
+    descripcion: fila.descripcion ?? null,
+    publicado: publicacionId != null,
+    publicacionId: publicacionId == null ? null : String(publicacionId),
     tieneHistorial,
     creadoEn: new Date(fila.creado_en).toISOString(),
   };
 }
 
 /**
+ * Lo que la API entrega ya validado para un alta o una modificacion
+ * (`validarLibro`). Los datos opcionales ausentes llegan en `null`.
+ *
+ * @typedef {object} DatosLibro
+ * @property {string} titulo
+ * @property {string} autor
+ * @property {number} cantidad
+ * @property {string | null} [editorial]
+ * @property {number | null} [anio]
+ * @property {string | null} [edicion]
+ * @property {string | null} [isbn]
+ * @property {string | null} [estadoConservacion]
+ * @property {string | null} [descripcion]
+ */
+
+/**
+ * Traduce los datos de la API a las columnas de `libros`.
+ *
+ * @param {DatosLibro} datos
+ * @returns {import('../data/libros.js').CamposLibro}
+ */
+function aCampos({
+  titulo,
+  autor,
+  cantidad,
+  editorial = null,
+  anio = null,
+  edicion = null,
+  isbn = null,
+  estadoConservacion = null,
+  descripcion = null,
+}) {
+  return {
+    titulo,
+    autor,
+    cantidad_total: cantidad,
+    editorial,
+    anio_publicacion: anio,
+    edicion,
+    isbn,
+    estado_conservacion: estadoConservacion,
+    descripcion,
+  };
+}
+
+/**
  * Alta de un libro (RF-10). La entrada ya viene validada por la API
- * (titulo y autor recortados, cantidad entera >= 1). No hay unicidad por
- * titulo: dos «Rayuela» del mismo dueño son legitimas (otra edicion, otro estado).
+ * (titulo y autor recortados, cantidad entera >= 1, datos opcionales en su
+ * formato o en `null`). No hay unicidad por titulo: dos «Rayuela» del mismo
+ * dueño son legitimas (otra edicion, otro estado).
  *
  * @param {string} usuarioId
- * @param {{ titulo: string, autor: string, cantidad: number }} datos
+ * @param {DatosLibro} datos
  * @param {{ ejecutar?: import('../data/libros.js').Ejecutor }} [opciones]
  * @returns {Promise<Libro>}
  */
-export async function agregarLibro(usuarioId, { titulo, autor, cantidad }, { ejecutar } = {}) {
-  const fila = await insertarLibro(
-    { usuario_id: usuarioId, titulo, autor, cantidad_total: cantidad },
-    ejecutar,
-  );
+export async function agregarLibro(usuarioId, datos, { ejecutar } = {}) {
+  const fila = await insertarLibro({ usuario_id: usuarioId, ...aCampos(datos) }, ejecutar);
   return vistaLibro(fila);
 }
 
@@ -96,37 +158,33 @@ export async function agregarLibro(usuarioId, { titulo, autor, cantidad }, { eje
  * - No existe, es de otro o esta archivado -> 404 NO_ENCONTRADO.
  * - `cantidad < cantidad_reservada` -> 409 ESTADO_INVALIDO con el numero.
  *
+ * El reemplazo incluye los datos opcionales: el que no viene queda en `null`.
+ *
  * @param {string} usuarioId
  * @param {string} libroId
- * @param {{ titulo: string, autor: string, cantidad: number }} datos
+ * @param {DatosLibro} datos
  * @param {{ ejecutar?: import('../data/libros.js').Ejecutor }} [opciones]
  * @returns {Promise<Libro>}
  */
-export async function modificarLibro(
-  usuarioId,
-  libroId,
-  { titulo, autor, cantidad },
-  { ejecutar } = {},
-) {
+export async function modificarLibro(usuarioId, libroId, datos, { ejecutar } = {}) {
   return enTransaccion(
     async (tx) => {
       const libro = await bloquearLibroPropio(libroId, usuarioId, tx);
       if (!libro) throw libroNoEncontrado();
 
       const minimo = libro.cantidad_reservada;
-      if (cantidad < minimo) {
+      if (datos.cantidad < minimo) {
         throw estadoInvalido(
           `Tenes ${minimo} ${minimo === 1 ? 'ejemplar reservado' : 'ejemplares reservados'} en intercambios aceptados. No podes bajar de ${minimo}.`,
           [{ campo: 'cantidad', mensaje: `El minimo es ${minimo}` }],
         );
       }
 
-      const fila = await actualizarLibro(
-        libroId,
-        { titulo, autor, cantidad_total: cantidad },
-        tx,
-      );
-      return vistaLibro(fila);
+      const fila = await actualizarLibro(libroId, aCampos(datos), tx);
+      // La interfaz reemplaza la ficha con lo que devuelve esto: tiene que
+      // seguir diciendo si el libro esta publicado (LET-130).
+      const vigente = await publicacionVigenteDeLibro(libroId, tx);
+      return vistaLibro(fila, { publicacionId: vigente?.id ?? null });
     },
     { ejecutar },
   );
@@ -200,8 +258,17 @@ export async function listarLibros(usuarioId, { q, pagina, porPagina } = {}, { e
     ejecutar,
   );
 
+  // Una sola consulta para saber que libros de la pagina estan publicados.
+  const vigentes = await publicacionesVigentesDeLibros(
+    filas.map((fila) => fila.id),
+    ejecutar,
+  );
+  const publicacionDe = new Map(vigentes.map((p) => [String(p.libro_id), p.id]));
+
   return {
-    datos: filas.map((fila) => vistaLibro(fila)),
+    datos: filas.map((fila) =>
+      vistaLibro(fila, { publicacionId: publicacionDe.get(String(fila.id)) ?? null }),
+    ),
     paginacion: { pagina: pag, porPagina: tam, total },
   };
 }
