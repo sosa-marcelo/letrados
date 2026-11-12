@@ -100,3 +100,26 @@ export async function valoracionesRecibidas(valorado_id, { limite, desplazamient
   );
   return { filas: rows, total: conteo[0].total };
 }
+
+/**
+ * La reputacion (promedio y cantidad de valoraciones) de varios usuarios a la
+ * vez, en una sola consulta. Para el perfil publico, Explorar y el detalle de
+ * una publicacion.
+ *
+ * @param {Array<string | number>} usuario_ids
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<Array<{ valorado_id: string, promedio: string, cantidad: number }>>}
+ */
+export async function reputacionesDeUsuarios(usuario_ids, ejecutar = consultar) {
+  if (usuario_ids.length === 0) return [];
+  // IN ($1, ...) y no ANY($1): pg-mem no resuelve ANY con un arreglo como parametro.
+  const marcas = usuario_ids.map((_, i) => `$${i + 1}`).join(', ');
+  const { rows } = await ejecutar(
+    `SELECT valorado_id, avg(puntaje) AS promedio, count(*)::int AS cantidad
+       FROM valoraciones
+      WHERE valorado_id IN (${marcas})
+      GROUP BY valorado_id`,
+    usuario_ids,
+  );
+  return rows;
+}
