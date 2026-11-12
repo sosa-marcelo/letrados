@@ -2,12 +2,12 @@ openapi: 3.1.0
 
 info:
   title: Letrados API
-  version: 2.0.0
+  version: 3.0.0
   description: |
     API de Letrados. Ciclo 1: autenticacion (modulo 1). Ciclo 2: usuarios y
-    roles (modulo 2) y catalogo de libros (modulo 3). Ciclo 3: publicaciones y
-    solicitudes e intercambios (modulo 4), y plazo, reportes y valoraciones
-    (modulo 5).
+    roles (modulo 2) y catalogo de libros (modulo 3). Ciclo 3: publicaciones e
+    intercambios, con el plazo, el flagueo y los reportes (modulo 4), y
+    valoraciones (modulo 5).
 
     Las sesiones son revocables: cada token lleva un `jti` registrado en el
     servidor, y cerrar sesion, bloquear una cuenta o darla de baja lo invalida
