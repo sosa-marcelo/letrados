@@ -200,30 +200,73 @@ export async function borrarLibro(id, ejecutar = consultar) {
  * Lo que impide retirar un libro (RF-12): publicaciones activas o reservadas y
  * solicitudes de intercambio abiertas que lo involucren.
  *
- * Las tablas `publicaciones` e `intercambios` llegan con el modulo 4 (fuera del
- * alcance del ciclo 2): hasta entonces no existe nada que pueda estorbar y la
- * funcion devuelve ceros. Cuando lleguen, se reemplaza el cuerpo por los dos
- * `COUNT` y el dominio no cambia.
- *
- * @param {string | number} _id
- * @param {Ejecutor} [_ejecutar]
+ * @param {string | number} id
+ * @param {Ejecutor} [ejecutar]
  * @returns {Promise<{ publicaciones: number, intercambios: number }>}
  */
-export async function contarEstorbosDeRetiro(_id, _ejecutar = consultar) {
-  return { publicaciones: 0, intercambios: 0 };
+export async function contarEstorbosDeRetiro(id, ejecutar = consultar) {
+  const { rows: pubs } = await ejecutar(
+    `SELECT count(*)::int AS n FROM publicaciones
+      WHERE libro_id = $1 AND estado IN ('activa', 'reservada')`,
+    [id],
+  );
+  const { rows: sols } = await ejecutar(
+    `SELECT count(*)::int AS n FROM solicitudes s
+       JOIN publicaciones p ON p.id = s.publicacion_id
+      WHERE s.estado IN ('pendiente', 'aceptada', 'flagueada')
+        AND (p.libro_id = $1 OR s.libro_ofrecido_id = $1)`,
+    [id],
+  );
+  return { publicaciones: pubs[0].n, intercambios: sols[0].n };
 }
 
 /**
- * Si el libro participo en intercambios completados (decide archivar o borrar).
- * Igual que `contarEstorbosDeRetiro`: sin la tabla de intercambios (modulo 4),
- * ningun libro tiene historial todavia.
+ * Si el libro tiene historial (alguna publicación o solicitud, en cualquier
+ * estado): decide archivar o borrar.
  *
- * @param {string | number} _id
- * @param {Ejecutor} [_ejecutar]
+ * @param {string | number} id
+ * @param {Ejecutor} [ejecutar]
  * @returns {Promise<boolean>}
  */
-export async function tieneIntercambiosCompletados(_id, _ejecutar = consultar) {
-  return false;
+export async function tieneHistorial(id, ejecutar = consultar) {
+  // `libro_id + 0` y no `libro_id`: pg-mem (la base de las pruebas) resuelve la
+  // busqueda con el indice parcial de publicaciones vigentes y no ve las
+  // retiradas ni las cerradas. En PostgreSQL el resultado es el mismo.
+  const { rows: pubs } = await ejecutar(
+    `SELECT 1 FROM publicaciones WHERE libro_id + 0 = $1 LIMIT 1`,
+    [id],
+  );
+  if (pubs.length > 0) return true;
+
+  const { rows: sols } = await ejecutar(
+    `SELECT 1 FROM solicitudes WHERE libro_ofrecido_id = $1 LIMIT 1`,
+    [id],
+  );
+  return sols.length > 0;
+}
+
+/**
+ * La version en lote de `tieneHistorial`: de una pagina entera del catalogo,
+ * que libros tienen historial (alguna publicacion o solicitud, en cualquier
+ * estado). Una consulta por tabla, no una por libro.
+ *
+ * @param {Array<string | number>} ids
+ * @param {Ejecutor} [ejecutar]
+ * @returns {Promise<Set<string>>} los ids con historial.
+ */
+export async function librosConHistorial(ids, ejecutar = consultar) {
+  if (ids.length === 0) return new Set();
+  const marcas = ids.map((_, i) => `$${i + 1}`).join(', ');
+  // `libro_id + 0`: el mismo motivo que en `tieneHistorial` (pg-mem).
+  const { rows: pubs } = await ejecutar(
+    `SELECT libro_id FROM publicaciones WHERE libro_id + 0 IN (${marcas})`,
+    ids,
+  );
+  const { rows: sols } = await ejecutar(
+    `SELECT libro_ofrecido_id AS libro_id FROM solicitudes WHERE libro_ofrecido_id IN (${marcas})`,
+    ids,
+  );
+  return new Set([...pubs, ...sols].map((fila) => String(fila.libro_id)));
 }
 
 /**
