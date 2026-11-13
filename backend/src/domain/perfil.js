@@ -54,7 +54,7 @@ export async function verPerfil(usuarioId, { ejecutar } = {}) {
     email: fila.email,
     rol: fila.rol,
     creadoEn: new Date(fila.creado_en).toISOString(),
-    reputacion: await reputacionDe(String(fila.id)),
+    reputacion: await reputacionDe(String(fila.id), { ejecutar }),
   };
 }
 
