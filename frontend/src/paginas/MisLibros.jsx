@@ -553,7 +553,7 @@ function DialogoRetiro({ libro, alCerrar, alRetirar }) {
       {error && <Aviso tipo="error">{error}</Aviso>}
       {libro.tieneHistorial ? (
         <p className="dialogo__texto">
-          <b>{libro.titulo}</b> participó en intercambios completados. Se archiva en lugar de
+          <b>{libro.titulo}</b> ya estuvo en publicaciones o solicitudes. Se archiva en lugar de
           eliminarse, para conservar el historial.
         </p>
       ) : (
