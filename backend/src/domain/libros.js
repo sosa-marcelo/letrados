@@ -7,7 +7,8 @@ import {
   archivarLibro,
   borrarLibro,
   contarEstorbosDeRetiro,
-  tieneIntercambiosCompletados,
+  tieneHistorial,
+  librosConHistorial,
   listarLibrosDeUsuario,
 } from '../data/libros.js';
 import {
@@ -44,7 +45,7 @@ const POR_PAGINA_DEFECTO = 20;
  * @property {string | null} descripcion
  * @property {boolean} publicado - si tiene una publicacion vigente, activa o reservada (LET-130).
  * @property {string | null} publicacionId - la publicacion vigente, para «Ver publicacion».
- * @property {boolean} tieneHistorial - si participo en intercambios completados (decide el texto del retiro).
+ * @property {boolean} tieneHistorial - si estuvo en alguna publicacion o solicitud (decide el texto del retiro).
  * @property {string} creadoEn
  */
 
@@ -195,8 +196,7 @@ export async function modificarLibro(usuarioId, libroId, datos, { ejecutar } = {
  *
  * 1. Tiene publicaciones activas o solicitudes abiertas -> 409 ESTADO_INVALIDO,
  *    enumerando lo que estorba en `detalles`.
- * 2. Participo en intercambios completados -> se ARCHIVA (la fila queda para
- *    el historial de la contraparte).
+ * 2. Tiene historial (alguna publicación o solicitud) -> se ARCHIVA.
  * 3. Nada de lo anterior -> se BORRA.
  *
  * @param {string} usuarioId
@@ -225,7 +225,7 @@ export async function retirarLibro(usuarioId, libroId, { ejecutar } = {}) {
         );
       }
 
-      if (await tieneIntercambiosCompletados(libroId, tx)) {
+      if (await tieneHistorial(libroId, tx)) {
         await archivarLibro(libroId, tx);
         return { resultado: 'archivado' };
       }
@@ -258,16 +258,19 @@ export async function listarLibros(usuarioId, { q, pagina, porPagina } = {}, { e
     ejecutar,
   );
 
-  // Una sola consulta para saber que libros de la pagina estan publicados.
-  const vigentes = await publicacionesVigentesDeLibros(
-    filas.map((fila) => fila.id),
-    ejecutar,
-  );
+  // Una consulta para saber que libros de la pagina estan publicados y otra
+  // para saber cuales tienen historial (decide «archivar» o «eliminar»).
+  const ids = filas.map((fila) => fila.id);
+  const vigentes = await publicacionesVigentesDeLibros(ids, ejecutar);
   const publicacionDe = new Map(vigentes.map((p) => [String(p.libro_id), p.id]));
+  const conHistorial = await librosConHistorial(ids, ejecutar);
 
   return {
     datos: filas.map((fila) =>
-      vistaLibro(fila, { publicacionId: publicacionDe.get(String(fila.id)) ?? null }),
+      vistaLibro(fila, {
+        publicacionId: publicacionDe.get(String(fila.id)) ?? null,
+        tieneHistorial: conHistorial.has(String(fila.id)),
+      }),
     ),
     paginacion: { pagina: pag, porPagina: tam, total },
   };

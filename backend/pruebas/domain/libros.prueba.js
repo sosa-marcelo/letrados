@@ -9,7 +9,8 @@ import {
   vistaLibro,
   POR_PAGINA_MAX,
 } from '../../src/domain/libros.js';
-import * as datosLibros from '../../src/data/libros.js';
+import { publicar, retirar } from '../../src/domain/publicaciones.js';
+import { solicitar, aceptar } from '../../src/domain/solicitudes.js';
 import { crearBdMemoria, sembrarUsuario } from '../apoyo/bd-memoria.js';
 
 let ejecutar;
@@ -198,6 +199,20 @@ describe('modificarLibro (RF-11)', () => {
 });
 
 describe('retirarLibro (RF-12)', () => {
+  /** Ana publica Rayuela y Beto la pide ofreciendo Ficciones (armado de valoraciones.prueba.js). */
+  async function armarSolicitud() {
+    const rayuela = await agregarLibro(ana, { titulo: 'Rayuela', autor: 'Cortázar', cantidad: 1 }, { ejecutar });
+    const ficciones = await agregarLibro(beto, { titulo: 'Ficciones', autor: 'Borges', cantidad: 1 }, { ejecutar });
+    const publicacion = await publicar(ana, { libroId: rayuela.id }, { ejecutar });
+    const solicitud = await solicitar(
+      beto,
+      { publicacionId: publicacion.id, libroOfrecidoId: ficciones.id },
+      { ejecutar },
+    );
+    return { rayuela, ficciones, solicitud };
+  }
+
+  // Caso 5 de Notion (queda igual): nunca publicado -> eliminado.
   it('sin publicaciones ni historial -> eliminado y la fila desaparece', async () => {
     const { id } = await agregarLibro(ana, RAYUELA, { ejecutar });
     expect(await retirarLibro(ana, id, { ejecutar })).toEqual({ resultado: 'eliminado' });
@@ -205,9 +220,47 @@ describe('retirarLibro (RF-12)', () => {
     expect(rows).toHaveLength(0);
   });
 
-  it('con intercambios completados -> archivado: la fila queda y sale del catalogo', async () => {
-    vi.spyOn(datosLibros, 'tieneIntercambiosCompletados').mockResolvedValue(true);
+  // Caso 1: solicitud aceptada -> 409 para los dos libros.
+  it('solicitud aceptada -> 409: 2 detalles para Rayuela y 1 para Ficciones', async () => {
+    const { rayuela, ficciones, solicitud } = await armarSolicitud();
+    await aceptar(ana, solicitud.id, { ejecutar });
+
+    const deAna = await retirarLibro(ana, rayuela.id, { ejecutar }).catch((e) => e);
+    expect(deAna).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
+    expect(deAna.detalles).toHaveLength(2);
+
+    const deBeto = await retirarLibro(beto, ficciones.id, { ejecutar }).catch((e) => e);
+    expect(deBeto).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
+    expect(deBeto.detalles).toHaveLength(1);
+
+    // No se borro ninguno.
+    const { rows } = await ejecutar('SELECT id FROM libros');
+    expect(rows).toHaveLength(2);
+  });
+
+  // Caso 2: ofrecido en una solicitud pendiente -> 409.
+  it('ofrecido en una solicitud pendiente -> 409', async () => {
+    const { ficciones } = await armarSolicitud();
+
+    const error = await retirarLibro(beto, ficciones.id, { ejecutar }).catch((e) => e);
+    expect(error).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
+  });
+
+  // Caso 3: solo publicacion activa -> 409 con un unico detalle.
+  it('solo una publicacion activa -> 409 con un unico detalle', async () => {
     const { id } = await agregarLibro(ana, RAYUELA, { ejecutar });
+    await publicar(ana, { libroId: id }, { ejecutar });
+
+    const error = await retirarLibro(ana, id, { ejecutar }).catch((e) => e);
+    expect(error).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
+    expect(error.detalles).toHaveLength(1);
+  });
+
+  // Caso 4: publicacion retirada -> archivado.
+  it('con una publicacion retirada -> archivado: la fila queda y sale del catalogo', async () => {
+    const { id } = await agregarLibro(ana, RAYUELA, { ejecutar });
+    const publicacion = await publicar(ana, { libroId: id }, { ejecutar });
+    await retirar(ana, publicacion.id, { ejecutar });
 
     expect(await retirarLibro(ana, id, { ejecutar })).toEqual({ resultado: 'archivado' });
 
@@ -216,32 +269,24 @@ describe('retirarLibro (RF-12)', () => {
     expect((await listarLibros(ana, {}, { ejecutar })).datos).toHaveLength(0);
   });
 
-  it('con publicacion activa o solicitud abierta -> 409 enumerando el estorbo', async () => {
-    vi.spyOn(datosLibros, 'contarEstorbosDeRetiro').mockResolvedValue({
-      publicaciones: 1,
-      intercambios: 2,
-    });
+
+  // Paso 5: listarLibros llena tieneHistorial (decide «Sí, archivar» o «Sí, eliminar»).
+  it('listarLibros marca tieneHistorial en los libros que estuvieron en publicaciones o solicitudes', async () => {
+    const { ficciones } = await armarSolicitud();
+    const quijote = await agregarLibro(beto, { titulo: 'Quijote', autor: 'Cervantes', cantidad: 1 }, { ejecutar });
+
+    const { datos } = await listarLibros(beto, {}, { ejecutar });
+    const porId = Object.fromEntries(datos.map((l) => [l.id, l]));
+    expect(porId[ficciones.id].tieneHistorial).toBe(true); // ofrecido en una solicitud
+    expect(porId[quijote.id].tieneHistorial).toBe(false); // nunca publicado ni ofrecido
+
     const { id } = await agregarLibro(ana, RAYUELA, { ejecutar });
-
-    const error = await retirarLibro(ana, id, { ejecutar }).catch((e) => e);
-    expect(error).toMatchObject({ codigo: 'ESTADO_INVALIDO', estado: 409 });
-    expect(error.detalles).toHaveLength(2);
-
-    // No se borro.
-    const { rows } = await ejecutar('SELECT id FROM libros WHERE id = $1', [id]);
-    expect(rows).toHaveLength(1);
+    const publicacion = await publicar(ana, { libroId: id }, { ejecutar });
+    await retirar(ana, publicacion.id, { ejecutar });
+    const deAna = (await listarLibros(ana, {}, { ejecutar })).datos.find((l) => l.id === id);
+    expect(deAna.tieneHistorial).toBe(true); // publicacion retirada
   });
-
-  it('solo publicaciones -> un unico detalle', async () => {
-    vi.spyOn(datosLibros, 'contarEstorbosDeRetiro').mockResolvedValue({
-      publicaciones: 1,
-      intercambios: 0,
-    });
-    const { id } = await agregarLibro(ana, RAYUELA, { ejecutar });
-    const error = await retirarLibro(ana, id, { ejecutar }).catch((e) => e);
-    expect(error.detalles).toHaveLength(1);
-  });
-
+  // Queda igual: libro ajeno -> 404.
   it('libro ajeno -> 404 y no lo toca', async () => {
     const { id } = await agregarLibro(beto, RAYUELA, { ejecutar });
     await expect(retirarLibro(ana, id, { ejecutar })).rejects.toMatchObject({
