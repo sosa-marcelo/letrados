@@ -1351,7 +1351,7 @@ components:
           description: La publicacion vigente del libro, para «Ver publicacion».
         tieneHistorial:
           type: boolean
-          description: Si participo en intercambios completados (al retirarlo se archiva).
+          description: Si estuvo en alguna publicacion o solicitud, en cualquier estado (al retirarlo se archiva en vez de eliminarse).
         creadoEn: {type: string, format: date-time}
 
     PedidoLibro:
